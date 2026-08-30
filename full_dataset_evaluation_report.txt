@@ -1,0 +1,28 @@
+FULL DATASET EVALUATION - F:\all_10_csv_manual\merged_final.csv
+Total rows: 11831510   Benign: 10584581   Attack: 1246929
+Threshold used: 0.3
+
+Accuracy: 0.9998
+Benign  -> Precision: 1.0000  Recall: 0.9998  F1: 0.9999
+Attack  -> Precision: 0.9983  Recall: 1.0000  F1: 0.9991
+Macro F1: 0.9995   Weighted F1: 0.9998
+
+Confusion Matrix (rows=actual, cols=predicted) [Benign, Attack]:
+[[10582400, 2181],
+ [59, 1246870]]
+
+Per-attack-type detection (sorted worst -> best):
+                   label  total  detected  missed  detection_rate_%  missed_rate_%
+        Brute Force -Web    570       517      53             90.70           9.30
+           SQL Injection     85        81       4             95.29           4.71
+        Brute Force -XSS    229       228       1             99.56           0.44
+                     Bot 144535    144534       1            100.00           0.00
+    DDOS attack-LOIC-UDP   1730      1730       0            100.00           0.00
+  DDoS attacks-LOIC-HTTP 575364    575364       0            100.00           0.00
+   DoS attacks-GoldenEye  41406     41406       0            100.00           0.00
+        DDOS attack-HOIC 198861    198861       0            100.00           0.00
+        DoS attacks-Hulk 180033    180033       0            100.00           0.00
+DoS attacks-SlowHTTPTest    107       107       0            100.00           0.00
+   DoS attacks-Slowloris   9908      9908       0            100.00           0.00
+          SSH-Bruteforce  94048     94048       0            100.00           0.00
+          FTP-BruteForce     53        53       0            100.00           0.00

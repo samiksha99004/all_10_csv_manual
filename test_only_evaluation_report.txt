@@ -1,0 +1,28 @@
+HELD-OUT TEST-SET EVALUATION (no leakage) - F:\all_10_csv_manual\test_dataset.csv
+Total rows: 2366446   Benign: 2116895   Attack: 249551
+Threshold used: 0.3
+
+Accuracy: 0.9998
+Benign  -> Precision: 1.0000  Recall: 0.9998  F1: 0.9999
+Attack  -> Precision: 0.9982  Recall: 0.9999  F1: 0.9990
+Macro F1: 0.9995   Weighted F1: 0.9998
+
+Confusion Matrix (rows=actual, cols=predicted) [Benign, Attack]:
+[[2116440, 455],
+ [21, 249530]]
+
+Per-attack-type detection (sorted worst -> best):
+                   label  total  detected  missed  detection_rate_%  missed_rate_%
+           SQL Injection     15        11       4             73.33          26.67
+        Brute Force -Web     98        83      15             84.69          15.31
+        Brute Force -XSS     53        52       1             98.11           1.89
+                     Bot  28954     28953       1            100.00           0.00
+    DDOS attack-LOIC-UDP    353       353       0            100.00           0.00
+  DDoS attacks-LOIC-HTTP 115040    115040       0            100.00           0.00
+   DoS attacks-GoldenEye   8330      8330       0            100.00           0.00
+        DDOS attack-HOIC  39938     39938       0            100.00           0.00
+        DoS attacks-Hulk  35943     35943       0            100.00           0.00
+DoS attacks-SlowHTTPTest     21        21       0            100.00           0.00
+   DoS attacks-Slowloris   1936      1936       0            100.00           0.00
+          SSH-Bruteforce  18858     18858       0            100.00           0.00
+          FTP-BruteForce     12        12       0            100.00           0.00
