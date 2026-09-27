@@ -1,0 +1,40 @@
+XGBoost - Benign (0) vs SSH-Bruteforce (1)
+============================================================
+Data: 1,093,651 rows (all SSH-Bruteforce rows + random Benign sample, target 1,000,000)
+Train 787,428 | validation 87,492 | test 218,731
+Features: 70   best iteration: 534
+
+Test set metrics (threshold 0.5):
+  accuracy             1.000000
+  precision_ssh        1.000000
+  recall_ssh           1.000000
+  f1_ssh               1.000000
+  roc_auc              1.000000
+  pr_auc               1.000000
+  false_positive_rate  0.000000
+
+Confusion matrix (rows = actual, cols = predicted):
+                            Benign  SSH-Bruteforce
+  Benign                   199,923               0
+  SSH-Bruteforce                 0          18,808
+
+                precision    recall  f1-score   support
+
+        Benign   1.000000  1.000000  1.000000    199923
+SSH-Bruteforce   1.000000  1.000000  1.000000     18808
+
+      accuracy                       1.000000    218731
+     macro avg   1.000000  1.000000  1.000000    218731
+  weighted avg   1.000000  1.000000  1.000000    218731
+
+Top 10 features by gain:
+  Fwd Act Data Pkts      74,601.9
+  Fwd Header Len         45,944.1
+  Dst Port               948.9
+  Fwd Seg Size Min       460.4
+  ACK Flag Cnt           361.7
+  URG Flag Cnt           293.4
+  Bwd Pkts/s             287.6
+  Fwd Pkts/s             56.8
+  Flow Byts/s            30.5
+  Init Bwd Win Byts      21.4

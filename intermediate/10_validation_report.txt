@@ -1,0 +1,133 @@
+====================================================================================================
+VALIDATION REPORT - cicids2018_full_cleaned.csv
+Rows: 11,872,582   Columns: 79
+====================================================================================================
+[PASS] All 10 raw files share the same 80 columns (after Tuesday's 4 ID columns)
+[PASS] Columns match the expected 79 (raw columns minus Timestamp, same order)
+[PASS] No duplicate column names
+[PASS] Column names have no leading/trailing spaces or characters XGBoost/LightGBM reject
+[PASS] No stray header rows inside the data
+[PASS] No empty / null / NaN text cells
+[PASS] No non-numeric text in numeric columns
+[PASS] No NaN values (after numeric conversion)
+[PASS] No +inf values
+[PASS] No -inf values
+[PASS] Label is never empty
+[PASS] Label has no leading/trailing spaces
+[PASS] Label only holds the 15 known CICIDS2018 classes
+[PASS] All 15 classes present
+[PASS] Every numeric column has one data type, the one fixed in step 7
+[PASS] Label is text in every chunk
+[PASS] No corrupt rows: negative values (Init Win Byts may be -1)
+[PASS] No corrupt rows: timing columns <= 120,000,000 us (120 s flow timeout)
+[PASS] No exact duplicate rows (all 79 columns)
+[PASS] No identical feature rows with different labels
+[PASS] All values fit in float32 (sklearn/XGBoost convert to float32)
+[PASS] Rows are shuffled (first 100,000 rows contain every common class)
+[PASS] Flag columns only 0 or 1
+[INFO] No column is entirely 0
+         -> 8 all-zero columns kept on purpose (all columns requested): ['Bwd PSH Flags', 'Bwd URG Flags', 'Fwd Byts/b Avg', 'Fwd Pkts/b Avg', 'Fwd Blk Rate Avg', 'Bwd Byts/b Avg', 'Bwd Pkts/b Avg', 'Bwd Blk Rate Avg']
+[PASS] Row count matches cleaning_log.json
+[PASS] Class counts match step 9 summary
+[PASS] Min/max match step 9 summary (CSV round-trip is lossless)
+----------------------------------------------------------------------------------------------------
+PASS: 26   FAIL: 0   WARN: 0   INFO: 1
+
+Per-column summary:
+   column              dtype                 min             max   NaN   inf  text
+   Dst Port            int64                   0           65535     0     0     0
+   Protocol            int64                   0              17     0     0     0
+   Flow Duration       int64                   1         1.2e+08     0     0     0
+   Tot Fwd Pkts        int64                   1          309629     0     0     0
+   Tot Bwd Pkts        int64                   0          123118     0     0     0
+   TotLen Fwd Pkts     int64                   0     1.44392e+08     0     0     0
+   TotLen Bwd Pkts     int64                   0      1.5636e+08     0     0     0
+   Fwd Pkt Len Max     int64                   0           64440     0     0     0
+   Fwd Pkt Len Min     int64                   0            1460     0     0     0
+   Fwd Pkt Len Mean    float64                 0         16529.3     0     0     0
+   Fwd Pkt Len Std     float64                 0         18401.6     0     0     0
+   Bwd Pkt Len Max     int64                   0           65160     0     0     0
+   Bwd Pkt Len Min     int64                   0            1460     0     0     0
+   Bwd Pkt Len Mean    float64                 0         33879.3     0     0     0
+   Bwd Pkt Len Std     float64                 0         22448.4     0     0     0
+   Flow Byts/s         float64                 0     1.80664e+09     0     0     0
+   Flow Pkts/s         float64         0.0166667           6e+06     0     0     0
+   Flow IAT Mean       float64               0.2         1.2e+08     0     0     0
+   Flow IAT Std        float64                 0     8.48081e+07     0     0     0
+   Flow IAT Max        int64                   1         1.2e+08     0     0     0
+   Flow IAT Min        int64                   0         1.2e+08     0     0     0
+   Fwd IAT Tot         int64                   0         1.2e+08     0     0     0
+   Fwd IAT Mean        float64                 0         1.2e+08     0     0     0
+   Fwd IAT Std         float64                 0     8.48081e+07     0     0     0
+   Fwd IAT Max         int64                   0         1.2e+08     0     0     0
+   Fwd IAT Min         int64                   0         1.2e+08     0     0     0
+   Bwd IAT Tot         int64                   0         1.2e+08     0     0     0
+   Bwd IAT Mean        float64                 0         1.2e+08     0     0     0
+   Bwd IAT Std         float64                 0     8.48372e+07     0     0     0
+   Bwd IAT Max         int64                   0         1.2e+08     0     0     0
+   Bwd IAT Min         int64                   0         1.2e+08     0     0     0
+   Fwd PSH Flags       int64                   0               1     0     0     0
+   Bwd PSH Flags       int64                   0               0     0     0     0
+   Fwd URG Flags       int64                   0               1     0     0     0
+   Bwd URG Flags       int64                   0               0     0     0     0
+   Fwd Header Len      int64                   0     2.47703e+06     0     0     0
+   Bwd Header Len      int64                   0     2.46237e+06     0     0     0
+   Fwd Pkts/s          float64        0.00833337           6e+06     0     0     0
+   Bwd Pkts/s          float64                 0           2e+06     0     0     0
+   Pkt Len Min         int64                   0            1460     0     0     0
+   Pkt Len Max         int64                   0           65160     0     0     0
+   Pkt Len Mean        float64                 0           17345     0     0     0
+   Pkt Len Std         float64                 0         22788.3     0     0     0
+   Pkt Len Var         float64                 0        5.19e+08     0     0     0
+   FIN Flag Cnt        int64                   0               1     0     0     0
+   SYN Flag Cnt        int64                   0               1     0     0     0
+   RST Flag Cnt        int64                   0               1     0     0     0
+   PSH Flag Cnt        int64                   0               1     0     0     0
+   ACK Flag Cnt        int64                   0               1     0     0     0
+   URG Flag Cnt        int64                   0               1     0     0     0
+   CWE Flag Count      int64                   0               1     0     0     0
+   ECE Flag Cnt        int64                   0               1     0     0     0
+   Down/Up Ratio       int64                   0             311     0     0     0
+   Pkt Size Avg        float64                 0         17478.4     0     0     0
+   Fwd Seg Size Avg    float64                 0         16529.3     0     0     0
+   Bwd Seg Size Avg    float64                 0         33879.3     0     0     0
+   Fwd Byts/b Avg      int64                   0               0     0     0     0
+   Fwd Pkts/b Avg      int64                   0               0     0     0     0
+   Fwd Blk Rate Avg    int64                   0               0     0     0     0
+   Bwd Byts/b Avg      int64                   0               0     0     0     0
+   Bwd Pkts/b Avg      int64                   0               0     0     0     0
+   Bwd Blk Rate Avg    int64                   0               0     0     0     0
+   Subflow Fwd Pkts    int64                   1          309629     0     0     0
+   Subflow Fwd Byts    int64                   0     1.44392e+08     0     0     0
+   Subflow Bwd Pkts    int64                   0          123118     0     0     0
+   Subflow Bwd Byts    int64                   0      1.5636e+08     0     0     0
+   Init Fwd Win Byts   int64                  -1           65535     0     0     0
+   Init Bwd Win Byts   int64                  -1           65535     0     0     0
+   Fwd Act Data Pkts   int64                   0          309628     0     0     0
+   Fwd Seg Size Min    int64                   0              56     0     0     0
+   Active Mean         float64                 0        1.14e+08     0     0     0
+   Active Std          float64                 0     7.52324e+07     0     0     0
+   Active Max          int64                   0        1.14e+08     0     0     0
+   Active Min          int64                   0        1.14e+08     0     0     0
+   Idle Mean           float64                 0         1.2e+08     0     0     0
+   Idle Std            float64                 0     7.63939e+07     0     0     0
+   Idle Max            int64                   0         1.2e+08     0     0     0
+   Idle Min            int64                   0         1.2e+08     0     0     0
+   Label               text     
+
+Class distribution:
+   Benign                        10,543,008
+   DDoS attacks-LOIC-HTTP           575,364
+   DDOS attack-HOIC                 198,861
+   DoS attacks-Hulk                 145,199
+   Bot                              144,535
+   Infilteration                    117,598
+   SSH-Bruteforce                    94,041
+   DoS attacks-GoldenEye             41,406
+   DoS attacks-Slowloris              9,908
+   DDOS attack-LOIC-UDP               1,730
+   Brute Force -Web                     547
+   Brute Force -XSS                     226
+   SQL Injection                         77
+   DoS attacks-SlowHTTPTest              43
+   FTP-BruteForce                        39
