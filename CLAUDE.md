@@ -21,6 +21,7 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 all_10_csv_manual/
 ├── CLAUDE.md
 ├── cleaning_dataset_report.pdf             formatted report of the cleaning pipeline (source, steps, columns, classes)
+├── training_xgboost_bruteforce.pdf         formatted report of how the SSH brute-force model was trained
 ├── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
 ├── codes_for_cleaning/
 │   ├── common.py                           paths (data folders are one level up), chunked Parquet I/O, log_step, WMI workaround
@@ -155,6 +156,7 @@ Final class counts:
   - `model_features.json`: the feature order and threshold.
   - `evaluation_report.txt`, `confusion_matrix.png`, `feature_importance.png`.
 - `xgboost` 3.4.1 was installed with the WMI-safe pip wrapper.
+- A written explanation of the training is in `training_xgboost_bruteforce.pdf` (project root).
 
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.
