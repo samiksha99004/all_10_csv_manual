@@ -1,0 +1,89 @@
+Loading data from F:\all_10_csv_manual\original_csv\cicids2018_full_cleaned.csv ...
+  2,329,184 rows, 15 classes  (56s)
+Label
+Benign                      999610
+DDoS attacks-LOIC-HTTP      575364
+DDOS attack-HOIC            198861
+DoS attacks-Hulk            145199
+Bot                         144535
+Infilteration               117598
+SSH-Bruteforce               94041
+DoS attacks-GoldenEye        41406
+DoS attacks-Slowloris         9908
+DDOS attack-LOIC-UDP          1730
+Brute Force -Web               547
+Brute Force -XSS               226
+SQL Injection                   77
+DoS attacks-SlowHTTPTest        43
+FTP-BruteForce                  39
+
+Dropped 8 constant columns; using 70 features
+Split: fit 1,677,012 | validation 186,335 | test 465,837
+Training XGBoost multi-class ...
+[0]	validation_0-mlogloss:1.50312
+[25]	validation_0-mlogloss:0.23265
+[50]	validation_0-mlogloss:0.13971
+[75]	validation_0-mlogloss:0.12650
+[100]	validation_0-mlogloss:0.12234
+[125]	validation_0-mlogloss:0.12062
+[150]	validation_0-mlogloss:0.11950
+[175]	validation_0-mlogloss:0.11875
+[200]	validation_0-mlogloss:0.11813
+[225]	validation_0-mlogloss:0.11764
+[250]	validation_0-mlogloss:0.11724
+[275]	validation_0-mlogloss:0.11689
+[300]	validation_0-mlogloss:0.11653
+[325]	validation_0-mlogloss:0.11623
+[350]	validation_0-mlogloss:0.11594
+[375]	validation_0-mlogloss:0.11570
+[400]	validation_0-mlogloss:0.11543
+[425]	validation_0-mlogloss:0.11528
+[450]	validation_0-mlogloss:0.11510
+[475]	validation_0-mlogloss:0.11494
+[499]	validation_0-mlogloss:0.11483
+  best iteration 497  (940s)
+
+CICIDS2018 multi-class attack classifier (XGBoost)
+================================================================
+Rows: 2,329,184   Classes: 15   Features: 70
+Benign sampled to 1,000,000; all attack rows kept. Split 80/20 per class.
+Trees built: 497
+
+Overall accuracy:        0.9571
+Balanced accuracy (mean recall): 0.8343
+Classes with recall < 95%: 7
+    DoS attacks-SlowHTTPTest   recall  22.2%   (test support 9)
+    FTP-BruteForce             recall  25.0%   (test support 8)
+    Infilteration              recall  51.8%   (test support 23,520)
+    SQL Injection              recall  80.0%   (test support 15)
+    DDOS attack-LOIC-UDP       recall  90.8%   (test support 346)
+    Brute Force -Web           recall  92.7%   (test support 109)
+    Brute Force -XSS           recall  93.3%   (test support 45)
+
+Per-class report (test set):
+
+                          precision    recall  f1-score   support
+
+                  Benign     0.9440    0.9572    0.9506    199922
+                     Bot     1.0000    0.9999    0.9999     28907
+        Brute Force -Web     0.4073    0.9266    0.5658       109
+        Brute Force -XSS     0.9545    0.9333    0.9438        45
+        DDOS attack-HOIC     1.0000    1.0000    1.0000     39772
+    DDOS attack-LOIC-UDP     0.8845    0.9075    0.8959       346
+  DDoS attacks-LOIC-HTTP     0.9997    0.9996    0.9997    115073
+   DoS attacks-GoldenEye     0.9998    0.9998    0.9998      8281
+        DoS attacks-Hulk     1.0000    1.0000    1.0000     29040
+DoS attacks-SlowHTTPTest     0.2500    0.2222    0.2353         9
+   DoS attacks-Slowloris     0.9995    1.0000    0.9997      1982
+          FTP-BruteForce     0.2222    0.2500    0.2353         8
+           Infilteration     0.5917    0.5178    0.5523     23520
+           SQL Injection     0.8571    0.8000    0.8276        15
+          SSH-Bruteforce     1.0000    1.0000    1.0000     18808
+
+                accuracy                         0.9571    465837
+               macro avg     0.8074    0.8343    0.8137    465837
+            weighted avg     0.9550    0.9571    0.9559    465837
+
+
+Saved model, report and plots to F:\all_10_csv_manual\all_attacks  (total 1014s)
+EXIT 0
