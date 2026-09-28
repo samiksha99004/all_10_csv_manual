@@ -22,6 +22,7 @@ all_10_csv_manual/
 ├── CLAUDE.md
 ├── cleaning_dataset_report.pdf             formatted report of the cleaning pipeline (source, steps, columns, classes)
 ├── training_xgboost_bruteforce.pdf         formatted report of how the SSH brute-force model was trained
+├── ssh_bruteforce_lab_test_procedure.pdf   step-by-step lab test: Kali+Patator attack, Ubuntu victim, model detects
 ├── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
 ├── codes_for_cleaning/
 │   ├── common.py                           paths (data folders are one level up), chunked Parquet I/O, log_step, WMI workaround
