@@ -20,6 +20,7 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 ```
 all_10_csv_manual/
 ├── CLAUDE.md
+├── cleaning_dataset_report.pdf             formatted report of the cleaning pipeline (source, steps, columns, classes)
 ├── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
 ├── codes_for_cleaning/
 │   ├── common.py                           paths (data folders are one level up), chunked Parquet I/O, log_step, WMI workaround
@@ -157,5 +158,6 @@ Final class counts:
 
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.
-- HEAD holds an **older pipeline** (`merging.py`, XGBoost/IsolationForest models, `merged*.csv`, train/test splits). All of those files are deleted in the working tree, and the current files are untracked.
-- Don't commit, restore or push without asking. The CSV and Parquet files are several GB each.
+- **Standing rule (user request): after every step, update this CLAUDE.md to reflect the change, then commit and push to `main`.** This is durable authorization to push without asking each time.
+- The repo now mirrors the working tree, except that `.gitignore` excludes the CSV and Parquet files (over GitHub's 100 MB limit), so pushes carry only code, docs, the small `intermediate/` JSON records, and the PDF report. The old pipeline files (`merging.py`, `.pkl` models, old `step*.py`, README) were removed from the repo; they remain in earlier history.
+- Auth: the stored Git Credential Manager credential authenticates as `samiksha99004`. Collaborators with write access: `shraddhamaria25`, `shreshta-del` (owner/admin: `samiksha99004`).
