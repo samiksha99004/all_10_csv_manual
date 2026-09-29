@@ -1,35 +1,35 @@
-# CICIDS2018 Intrusion Detection: Data Cleaning and an XGBoost Attack Classifier
+# CICIDS2018 Intrusion Detection: Cleaning and Three XGBoost / Isolation Forest Models
 
-This project cleans the full **CSE-CIC-IDS2018** network-traffic dataset (10 daily CSV files, 16.2 million flows) into one machine-learning-ready file. It then trains an XGBoost classifier that labels each flow as Benign or one of 14 attack types (15 classes).
+This project cleans the full **CSE-CIC-IDS2018** network-traffic dataset (10 daily CSV files, 16.2 million flows) into one machine-learning-ready file, then trains **three intrusion-detection models** that label each flow as Benign or one of 14 attack types (15 classes).
 
 Each row of the dataset is one network flow (one connection) described by 78 statistics from CICFlowMeter, plus a `Label`.
 
-## Results at a glance
+## The three models
 
-| Model | Test rows | Overall accuracy | Notes |
-|---|---|---|---|
-| All attacks, 15 classes (`training_xgboost/`) | 465,837 | 95.7% | 10 of 15 classes catch at least 95% of their attacks |
+| # | Model | Folder | Overall accuracy | Classes ≥95% recall |
+|---|---|---|---|---|
+| 1 | **Single XGBoost** (15-class) | `1_xgboost_model/` | 95.7% | **10 / 15** |
+| 2 | **Two-Level XGBoost** (attack-or-not → which attack) | `2_xgboost_model/` | **96.3%** | 9 / 15 |
+| 3 | **Isolation Forest + XGBoost** (anomaly gate → which attack) | `isolation_forest_and_xgboost_model/` | 89.1% | 4 / 15 |
 
-Five classes are below 95% recall:
-- **Infilteration (51.8%):** its flows look like normal traffic.
-- **Brute Force -XSS (93.3%), SQL Injection (73.3%), FTP-BruteForce (25.0%), DoS-SlowHTTPTest (0%):** after duplicates were removed, each has only 39–226 rows.
+Tested on the same 465,837-flow held-out set. A side-by-side comparison is in [`model_comparison_report.pdf`](model_comparison_report.pdf); each folder also has its own detailed training-report PDF.
 
-Full per-class results are in [`training_xgboost/training_conclusion.pdf`](training_xgboost/training_conclusion.pdf).
+**Which to use:** Model 2 for the best overall accuracy, Model 1 for the widest class coverage and simplest deployment. Model 3 trails because its unsupervised gate drops attacks, but it is the only one that can flag unknown attack types.
+
+**Shared limit:** all three fall below 95% on Infilteration (its flows look like normal traffic) and on SQL Injection, FTP-BruteForce and DoS-SlowHTTPTest, which have only 8–15 test rows after duplicate removal.
 
 ## Repository layout
 
 ```
 .
 ├── README.md, CLAUDE.md, .gitignore
-├── cleaning_dataset/     10-step cleaning pipeline (+ common.py helpers),
-│                         records of the run (row counts, data types, summary, validation report)
-│                         and cleaning_dataset_report.pdf
-├── training_xgboost/     15-class model: training, class-weight tuning, final test,
-│                         the trained model, results and training_conclusion.pdf
-├── xgboost_isolation_forest_training/   hybrid: Isolation Forest flags attacks, XGBoost names them;
-│                                         how it works and how to run it: steps.txt
-├── notebooks/            the Kaggle decision-tree notebook this project started from
-└── original_csv/         the 10 raw CSVs + the cleaned CSV (local only, not on GitHub)
+├── model_comparison_report.pdf          the three models compared side by side
+├── cleaning_dataset/                    10-step cleaning pipeline + records + cleaning_dataset_report.pdf
+├── 1_xgboost_model/                     single 15-class XGBoost + training_conclusion.pdf
+├── 2_xgboost_model/                     two-level XGBoost (binary gate + attack namer) + training_report.pdf
+├── isolation_forest_and_xgboost_model/  Isolation Forest gate + XGBoost + hybrid_training_conclusion.pdf, steps.txt
+├── notebooks/                           the Kaggle decision-tree notebook this project started from
+└── original_csv/                        the 10 raw CSVs + the cleaned CSV (local only, not on GitHub)
 ```
 
 ## Data
@@ -67,34 +67,38 @@ done
 
 Result: **11,872,582 rows × 79 columns**, with no missing, infinite, duplicate or conflicting rows.
 
-## Training the model
+Every model uses a stratified 80% train / 20% test split, with Benign sampled to 1,000,000 rows (the full 10.5 million don't fit in memory) and every attack row kept.
+
+## Training the models
+
+**Model 1 — Single XGBoost** (train ~17 min, tune ~3 min, test ~2 min):
 
 ```bash
-# train (~17 min), tune class weights (~3 min), final test (~2 min)
-python training_xgboost/train_all_attacks.py
-python training_xgboost/tune_class_weights.py
-python training_xgboost/evaluate_final.py
+python 1_xgboost_model/train_all_attacks.py
+python 1_xgboost_model/tune_class_weights.py
+python 1_xgboost_model/evaluate_final.py
 ```
 
-The model trains on a stratified 80% of each class and is tested on the remaining 20%. Benign is sampled to 1,000,000 rows, because the full 10.5 million rows don't fit in memory.
-
-## Hybrid: Isolation Forest + XGBoost
-
-`xgboost_isolation_forest_training/` chains two models:
-1. **Isolation Forest**, trained only on normal traffic, flags anything unusual.
-2. **XGBoost** names the attack for every flagged flow, or answers "Benign" to cancel a false alarm.
-
-Both use the same 80/20 split per class. Run the five scripts in order; `steps.txt` in that folder explains the training and the run order:
+**Model 2 — Two-Level XGBoost** (level 1 = attack vs not, level 2 = which attack):
 
 ```bash
-python xgboost_isolation_forest_training/1_prepare_data.py            # 80/20 split, read in chunks
-python xgboost_isolation_forest_training/2_train_isolation_forest.py  # stage 1 + thresholds
-python xgboost_isolation_forest_training/3_evaluate_isolation_forest.py
-python xgboost_isolation_forest_training/4_train_xgboost.py           # stage 2
-python xgboost_isolation_forest_training/5_evaluate_hybrid.py         # final result: hybrid_report.txt
+python 2_xgboost_model/1_prepare_data.py
+python 2_xgboost_model/2_train_level1.py
+python 2_xgboost_model/3_train_level2.py
+python 2_xgboost_model/4_evaluate.py        # result: final_report.txt
 ```
 
-## Using the 15-class model
+**Model 3 — Isolation Forest + XGBoost** (`steps.txt` in that folder has the same list):
+
+```bash
+python isolation_forest_and_xgboost_model/1_prepare_data.py
+python isolation_forest_and_xgboost_model/2_train_isolation_forest.py
+python isolation_forest_and_xgboost_model/3_evaluate_isolation_forest.py
+python isolation_forest_and_xgboost_model/4_train_xgboost.py
+python isolation_forest_and_xgboost_model/5_evaluate_hybrid.py   # result: hybrid_report.txt
+```
+
+## Using Model 1 (single XGBoost)
 
 ```python
 import json
@@ -103,10 +107,10 @@ import pandas as pd
 import xgboost as xgb
 
 model = xgb.XGBClassifier()
-model.load_model("training_xgboost/all_attacks_xgb.json")
-features = json.load(open("training_xgboost/model_features.json"))["features"]   # 70 columns, in order
-classes = json.load(open("training_xgboost/label_classes.json"))                 # "0" -> "Benign", ...
-weights = json.load(open("training_xgboost/class_weights.json"))                 # tuned per-class weights
+model.load_model("1_xgboost_model/all_attacks_xgb.json")
+features = json.load(open("1_xgboost_model/model_features.json"))["features"]   # 70 columns, in order
+classes = json.load(open("1_xgboost_model/label_classes.json"))                # "0" -> "Benign", ...
+weights = json.load(open("1_xgboost_model/class_weights.json"))                 # tuned per-class weights
 w = np.array([weights[classes[str(i)]] for i in range(len(classes))])
 
 flows = pd.read_csv("flows.csv")                      # CICFlowMeter columns, same names as the dataset
