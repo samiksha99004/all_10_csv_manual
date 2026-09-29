@@ -1,9 +1,6 @@
-# CICIDS2018 Intrusion Detection: Data Cleaning and XGBoost Models
+# CICIDS2018 Intrusion Detection: Data Cleaning and an XGBoost Attack Classifier
 
-This project cleans the full **CSE-CIC-IDS2018** network-traffic dataset (10 daily CSV files, 16.2 million flows) into one machine-learning-ready file. It then trains two XGBoost models on the cleaned data:
-
-- **SSH brute-force detector:** tells normal traffic from SSH brute-force attacks (binary).
-- **All-attacks classifier:** labels each flow as Benign or one of 14 attack types (15 classes).
+This project cleans the full **CSE-CIC-IDS2018** network-traffic dataset (10 daily CSV files, 16.2 million flows) into one machine-learning-ready file. It then trains an XGBoost classifier that labels each flow as Benign or one of 14 attack types (15 classes).
 
 Each row of the dataset is one network flow (one connection) described by 78 statistics from CICFlowMeter, plus a `Label`.
 
@@ -11,10 +8,9 @@ Each row of the dataset is one network flow (one connection) described by 78 sta
 
 | Model | Test rows | Overall accuracy | Notes |
 |---|---|---|---|
-| SSH brute-force (`xg_bruteforce/`) | 218,731 | 100% | 0 false alarms, 0 missed attacks |
 | All attacks, 15 classes (`all_attacks/`) | 465,837 | 95.7% | 10 of 15 classes catch at least 95% of their attacks |
 
-In the all-attacks model, five classes are below 95% recall:
+Five classes are below 95% recall:
 - **Infilteration (51.8%):** its flows look like normal traffic.
 - **Brute Force -XSS (93.3%), SQL Injection (73.3%), FTP-BruteForce (25.0%), DoS-SlowHTTPTest (0%):** after duplicates were removed, each has only 39–226 rows.
 
@@ -25,12 +21,9 @@ Full per-class results are in [`training_conclusion.pdf`](training_conclusion.pd
 ```
 .
 ├── codes_for_cleaning/          10-step cleaning pipeline (+ common.py helpers)
-├── xg_bruteforce/               SSH brute-force model, its training script and results
 ├── all_attacks/                 15-class model: training, class-weight tuning, final test
 ├── intermediate/                small records of the cleaning run (row counts, data types, validation)
 ├── cleaning_dataset_report.pdf  how the dataset was cleaned
-├── training_xgboost_bruteforce.pdf   how the SSH brute-force model was trained
-├── ssh_bruteforce_lab_test_procedure.pdf  lab test: Kali + Patator attack against an Ubuntu VM
 ├── training_conclusion.pdf      how the 15-class model was trained, stored and tested
 └── CLAUDE.md                    detailed project notes
 ```
@@ -70,19 +63,16 @@ done
 
 Result: **11,872,582 rows × 79 columns**, with no missing, infinite, duplicate or conflicting rows.
 
-## Training the models
+## Training the model
 
 ```bash
-# SSH brute-force detector (about 2.5 minutes)
-python xg_bruteforce/train_ssh_bruteforce.py
-
-# 15-class model: train (~17 min), tune class weights (~3 min), final test (~2 min)
+# train (~17 min), tune class weights (~3 min), final test (~2 min)
 python all_attacks/train_all_attacks.py
 python all_attacks/tune_class_weights.py
 python all_attacks/evaluate_final.py
 ```
 
-Both models train on a stratified 80% of each class and are tested on the remaining 20%. Benign is sampled to 1,000,000 rows, because the full 10.5 million rows don't fit in memory.
+The model trains on a stratified 80% of each class and is tested on the remaining 20%. Benign is sampled to 1,000,000 rows, because the full 10.5 million rows don't fit in memory.
 
 ## Using the 15-class model
 

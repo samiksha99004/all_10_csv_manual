@@ -7,7 +7,7 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 - one correct data type per column;
 - rows shuffled.
 
-**Status:** cleaning is done. Two models are trained: the SSH brute-force detector (`xg_bruteforce/`) and the 15-class all-attacks classifier (`all_attacks/`). The user decides the next steps.
+**Status:** cleaning is done, and one model is trained: the 15-class all-attacks classifier (`all_attacks/`). The user decides the next steps.
 
 ## What the user wants (keep to this)
 - **Clean only; never drop columns.** No feature selection, no removal of zero or correlated columns, unless the user asks for it. An earlier version dropped columns (46 left) and the user rejected it.
@@ -22,14 +22,11 @@ all_10_csv_manual/
 ├── CLAUDE.md
 ├── README.md                               GitHub front page: project overview, how to run, results, model usage
 ├── cleaning_dataset_report.pdf             formatted report of the cleaning pipeline (source, steps, columns, classes)
-├── training_xgboost_bruteforce.pdf         formatted report of how the SSH brute-force model was trained
-├── ssh_bruteforce_lab_test_procedure.pdf   step-by-step lab test: Kali+Patator attack, Ubuntu victim, model detects
 ├── training_conclusion.pdf                 15-class model: training, tree storage, data types, testing, metrics, confusion matrix
 ├── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
 ├── codes_for_cleaning/
 │   ├── common.py                           paths (data folders are one level up), chunked Parquet I/O, log_step, WMI workaround
 │   └── 1_load_merge.py … 10_validate_final_dataset.py
-├── xg_bruteforce/                          XGBoost Benign-vs-SSH-Bruteforce model (see "Models" below)
 ├── all_attacks/                            XGBoost 15-class model: Benign + 14 attack types (see "Models" below)
 ├── original_csv/                           10 raw day files + cicids2018_full_cleaned.csv
 └── intermediate/                           small records only: cleaning_log.json, 7_final_dtypes.json,
@@ -144,23 +141,9 @@ Final class counts:
 
 ## Models
 
-### `xg_bruteforce/`: SSH brute-force detector
-- **Script:** `train_ssh_bruteforce.py`, run from the project root. It takes about 2.5 minutes.
-- **Task:** binary XGBoost, Benign (0) vs SSH-Bruteforce (1). Every other attack is ignored, as the user asked.
-- **Data:** all 94,041 SSH rows plus a random 1,000,000 Benign rows (`BENIGN_SAMPLE`). The full Benign set doesn't fit in memory. The CSV is read in chunks as float32.
-- **Setup:**
-  - Features: 70, after dropping columns that are constant in training.
-  - Split: stratified 80/20 train/test, with 10% of train used for early stopping.
-  - Class balance: `scale_pos_weight` of about 10.6.
-- **Early stopping watches logloss, which is the last item in `eval_metric`.** With `aucpr` last, training stopped at 2 trees, because aucpr is 1.0 from the first round.
-- **Result on the 218,731-row test set:** 100% accuracy, precision and recall. 0 false positives, 0 missed attacks, 534 trees.
-  - The top features are `Fwd Act Data Pkts`, `Fwd Header Len` and `Dst Port`. The CICIDS2018 SSH brute-force flows are very uniform, so a perfect score here doesn't mean the model will work as well on other networks.
-- **Outputs:**
-  - `ssh_bruteforce_xgb.json`: the model.
-  - `model_features.json`: the feature order and threshold.
-  - `evaluation_report.txt`, `confusion_matrix.png`, `feature_importance.png`.
 - `xgboost` 3.4.1 was installed with the WMI-safe pip wrapper.
-- A written explanation of the training is in `training_xgboost_bruteforce.pdf` (project root).
+- XGBoost early stopping follows the **last** metric in `eval_metric`. A metric that is perfect from round 1 (such as `aucpr` on an easy task) stops training almost immediately, so put `logloss` or `mlogloss` last.
+- The user had a separate binary SSH brute-force model (`xg_bruteforce/`), its training PDF and a Kali/Patator lab-attack procedure PDF. **All of these were deleted on request.** Don't recreate them unless asked.
 
 ### `all_attacks/`: 15-class attack classifier
 - **Task:** label each flow as Benign or one of the 14 attack types. The user's target is at least 95% recall for every class and at least 95% overall accuracy.
