@@ -58,7 +58,7 @@ def load_data():
     dtypes = {c: np.float32 for c in features}
 
     # Benign count for the sampling probability (from the cleaning summary if present)
-    summ = os.path.join(ROOT, "intermediate", "9_final_summary.json")
+    summ = os.path.join(ROOT, "cleaning_dataset", "9_final_summary.json")
     if os.path.exists(summ):
         n_benign = json.load(open(summ, encoding="utf-8"))["label_counts"][BENIGN]
     else:

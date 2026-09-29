@@ -8,24 +8,26 @@ Each row of the dataset is one network flow (one connection) described by 78 sta
 
 | Model | Test rows | Overall accuracy | Notes |
 |---|---|---|---|
-| All attacks, 15 classes (`all_attacks/`) | 465,837 | 95.7% | 10 of 15 classes catch at least 95% of their attacks |
+| All attacks, 15 classes (`training_xgboost/`) | 465,837 | 95.7% | 10 of 15 classes catch at least 95% of their attacks |
 
 Five classes are below 95% recall:
 - **Infilteration (51.8%):** its flows look like normal traffic.
 - **Brute Force -XSS (93.3%), SQL Injection (73.3%), FTP-BruteForce (25.0%), DoS-SlowHTTPTest (0%):** after duplicates were removed, each has only 39–226 rows.
 
-Full per-class results are in [`training_conclusion.pdf`](training_conclusion.pdf).
+Full per-class results are in [`training_xgboost/training_conclusion.pdf`](training_xgboost/training_conclusion.pdf).
 
 ## Repository layout
 
 ```
 .
-├── codes_for_cleaning/          10-step cleaning pipeline (+ common.py helpers)
-├── all_attacks/                 15-class model: training, class-weight tuning, final test
-├── intermediate/                small records of the cleaning run (row counts, data types, validation)
-├── cleaning_dataset_report.pdf  how the dataset was cleaned
-├── training_conclusion.pdf      how the 15-class model was trained, stored and tested
-└── CLAUDE.md                    detailed project notes
+├── README.md, CLAUDE.md, .gitignore
+├── cleaning_dataset/     10-step cleaning pipeline (+ common.py helpers),
+│                         records of the run (row counts, data types, summary, validation report)
+│                         and cleaning_dataset_report.pdf
+├── training_xgboost/     15-class model: training, class-weight tuning, final test,
+│                         the trained model, results and training_conclusion.pdf
+├── notebooks/            the Kaggle decision-tree notebook this project started from
+└── original_csv/         the 10 raw CSVs + the cleaned CSV (local only, not on GitHub)
 ```
 
 ## Data
@@ -46,7 +48,7 @@ mkdir -p intermediate
 for s in 1_load_merge 2_drop_timestamp 3_remove_inf_nan_null 4_remove_corrupt_rows \
          5_remove_duplicates 6_remove_conflicting_labels 7_fix_dtypes 8_shuffle_rows \
          9_save_final_csv 10_validate_final_dataset; do
-  python -u codes_for_cleaning/$s.py >> intermediate/pipeline_run.log 2>&1 || break
+  python -u cleaning_dataset/$s.py >> intermediate/pipeline_run.log 2>&1 || break
 done
 ```
 
@@ -67,9 +69,9 @@ Result: **11,872,582 rows × 79 columns**, with no missing, infinite, duplicate 
 
 ```bash
 # train (~17 min), tune class weights (~3 min), final test (~2 min)
-python all_attacks/train_all_attacks.py
-python all_attacks/tune_class_weights.py
-python all_attacks/evaluate_final.py
+python training_xgboost/train_all_attacks.py
+python training_xgboost/tune_class_weights.py
+python training_xgboost/evaluate_final.py
 ```
 
 The model trains on a stratified 80% of each class and is tested on the remaining 20%. Benign is sampled to 1,000,000 rows, because the full 10.5 million rows don't fit in memory.
@@ -83,10 +85,10 @@ import pandas as pd
 import xgboost as xgb
 
 model = xgb.XGBClassifier()
-model.load_model("all_attacks/all_attacks_xgb.json")
-features = json.load(open("all_attacks/model_features.json"))["features"]   # 70 columns, in order
-classes = json.load(open("all_attacks/label_classes.json"))                 # "0" -> "Benign", ...
-weights = json.load(open("all_attacks/class_weights.json"))                 # tuned per-class weights
+model.load_model("training_xgboost/all_attacks_xgb.json")
+features = json.load(open("training_xgboost/model_features.json"))["features"]   # 70 columns, in order
+classes = json.load(open("training_xgboost/label_classes.json"))                 # "0" -> "Benign", ...
+weights = json.load(open("training_xgboost/class_weights.json"))                 # tuned per-class weights
 w = np.array([weights[classes[str(i)]] for i in range(len(classes))])
 
 flows = pd.read_csv("flows.csv")                      # CICFlowMeter columns, same names as the dataset

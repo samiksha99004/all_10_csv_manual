@@ -7,30 +7,33 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 - one correct data type per column;
 - rows shuffled.
 
-**Status:** cleaning is done, and one model is trained: the 15-class all-attacks classifier (`all_attacks/`). The user decides the next steps.
+**Status:** cleaning is done, and one model is trained: the 15-class all-attacks classifier (`training_xgboost/`). The user decides the next steps.
 
 ## What the user wants (keep to this)
 - **Clean only; never drop columns.** No feature selection, no removal of zero or correlated columns, unless the user asks for it. An earlier version dropped columns (46 left) and the user rejected it.
 - The final CSV has **79 columns**: the raw columns minus `Timestamp`. There is no `source_file` column and no `time` feature. `Label` keeps the **original text** (not encoded).
-- `original_csv/` must hold exactly **11 CSVs**: the 10 raw files plus `cicids2018_full_cleaned.csv`. Every other output goes in `intermediate/`.
+- `original_csv/` must hold exactly **11 CSVs**: the 10 raw files plus `cicids2018_full_cleaned.csv`. The large temporary Parquet files go in `intermediate/`, which git ignores. The small cleaning records live in `cleaning_dataset/`.
+- **Folder layout (set by the user; keep it):** only `README.md`, `CLAUDE.md` and `.gitignore` sit at the root, because GitHub, Claude Code and git only read them there. Everything else lives in `cleaning_dataset/`, `training_xgboost/`, `notebooks/` or `original_csv/`.
 - One script per step, named `N_stepname.py`.
 - The user confirmed these removals: all exact duplicates (even though that leaves FTP-BruteForce and SlowHTTPTest with only a few dozen rows), all rows whose features appear with more than one label, and the 15 corrupt rows. Ask before removing anything else.
 
 ## Folder layout
 ```
 all_10_csv_manual/
-├── CLAUDE.md
-├── README.md                               GitHub front page: project overview, how to run, results, model usage
-├── cleaning_dataset_report.pdf             formatted report of the cleaning pipeline (source, steps, columns, classes)
-├── training_conclusion.pdf                 15-class model: training, tree storage, data types, testing, metrics, confusion matrix
-├── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
-├── codes_for_cleaning/
-│   ├── common.py                           paths (data folders are one level up), chunked Parquet I/O, log_step, WMI workaround
-│   └── 1_load_merge.py … 10_validate_final_dataset.py
-├── all_attacks/                            XGBoost 15-class model: Benign + 14 attack types (see "Models" below)
-├── original_csv/                           10 raw day files + cicids2018_full_cleaned.csv
-└── intermediate/                           small records only: cleaning_log.json, 7_final_dtypes.json,
-                                            9_final_summary.json, 10_validation_report.txt
+├── CLAUDE.md, README.md, .gitignore        must stay at the root (README = GitHub front page)
+├── cleaning_dataset/
+│   ├── common.py                           paths (data folders one level up), chunked Parquet I/O, log_step, WMI workaround
+│   ├── 1_load_merge.py … 10_validate_final_dataset.py
+│   ├── cleaning_log.json, 7_final_dtypes.json, 9_final_summary.json, 10_validation_report.txt   records of the run
+│   └── cleaning_dataset_report.pdf         formatted report of the cleaning pipeline (source, steps, columns, classes)
+├── training_xgboost/                       XGBoost 15-class model: Benign + 14 attack types (see "Models" below)
+│   ├── train_all_attacks.py, tune_class_weights.py, evaluate_final.py
+│   ├── all_attacks_xgb.json + label/feature/weight JSONs, metrics, confusion matrices, plots, logs
+│   └── training_conclusion.pdf             training, tree storage, data types, testing, metrics, confusion matrix
+├── notebooks/
+│   └── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
+├── original_csv/                           10 raw day files + cicids2018_full_cleaned.csv (git-ignored)
+└── intermediate/                           created only while the pipeline runs: per-step Parquet files (git-ignored)
 ```
 The per-step Parquet files (~14 GB) and the unused `attack_csvs/` folder were deleted on request. Steps 1–9 recreate the Parquet files.
 
@@ -60,7 +63,7 @@ Quirks:
 - Python 3.13 (`C:\Users\Lenovo\AppData\Local\Programs\Python\Python313`), with pandas 3.0, numpy 2.5, pyarrow 25, scikit-learn 1.9, matplotlib and seaborn.
 - **The Windows WMI service hangs on this machine.** Python's `platform` module queries WMI, so `import pandas`, `import sklearn` and `pip` freeze. PowerShell `Get-CimInstance`, `tasklist` and `wmic` hang too.
   - Every script must `from common import …` **before** importing pandas or sklearn. `common.py` makes `platform._wmi_query` raise `OSError`.
-  - For ad-hoc snippets run from the project root, first do `sys.path.insert(0, "codes_for_cleaning")`, then `import common`.
+  - For ad-hoc snippets run from the project root, first do `sys.path.insert(0, "cleaning_dataset")`, then `import common`.
   - To install packages, use this wrapper, because plain `pip install` hangs forever:
     ```python
     import platform, sys
@@ -76,7 +79,7 @@ Quirks:
 - Create `intermediate/` before redirecting a log into it; the shell opens the log before Python creates the folder.
 
 ## Pipeline
-Each step streams the previous step's Parquet file from `intermediate/` and writes a new one. It also records rows in and out in `intermediate/cleaning_log.json` through `log_step()`; re-running a step overwrites its entry. Numeric columns stay float64 in the intermediate files, and step 6 sets the final types.
+Each step streams the previous step's Parquet file from `intermediate/` and writes a new one. It also records rows in and out in `cleaning_dataset/cleaning_log.json` through `log_step()`; re-running a step overwrites its entry. Numeric columns stay float64 in the intermediate files, and step 6 sets the final types.
 
 | # | Script | Does | Output |
 |---|---|---|---|
@@ -96,7 +99,7 @@ Step 4's rule: a row is corrupt if it has a negative value in any column, or a t
 To run everything from the project root (about 45 minutes on this machine; step 1 alone takes 5–8):
 ```bash
 mkdir -p intermediate
-for s in 1_load_merge 2_drop_timestamp 3_remove_inf_nan_null 4_remove_corrupt_rows 5_remove_duplicates 6_remove_conflicting_labels 7_fix_dtypes 8_shuffle_rows 9_save_final_csv 10_validate_final_dataset; do python -u codes_for_cleaning/$s.py >> intermediate/pipeline_run.log 2>&1 || break; done
+for s in 1_load_merge 2_drop_timestamp 3_remove_inf_nan_null 4_remove_corrupt_rows 5_remove_duplicates 6_remove_conflicting_labels 7_fix_dtypes 8_shuffle_rows 9_save_final_csv 10_validate_final_dataset; do python -u cleaning_dataset/$s.py >> intermediate/pipeline_run.log 2>&1 || break; done
 ```
 - Each step needs the previous step's Parquet file. Those were deleted after the final run, so a change to any step means re-running from step 1. Step 10 alone can still be re-run on the final CSV, because its JSON inputs were kept.
 - Run long jobs in the background.
@@ -115,7 +118,7 @@ for s in 1_load_merge 2_drop_timestamp 3_remove_inf_nan_null 4_remove_corrupt_ro
 | 6 conflicting labels (21,768 feature vectors; 21,743 are Benign vs Infilteration) | 43,541 | **11,872,582** |
 
 The final file, `cicids2018_full_cleaned.csv`, has **11,872,582 rows × 79 columns** (~4.8 GB), with rows shuffled.
-- **Data types:** 54 int64, 24 float64, and `Label` as text (`intermediate/7_final_dtypes.json`).
+- **Data types:** 54 int64, 24 float64, and `Label` as text (`cleaning_dataset/7_final_dtypes.json`).
 - **Step 10 result:** 26 PASS, 0 FAIL, 0 WARN, 1 INFO.
 
 Final class counts:
@@ -145,7 +148,7 @@ Final class counts:
 - XGBoost early stopping follows the **last** metric in `eval_metric`. A metric that is perfect from round 1 (such as `aucpr` on an easy task) stops training almost immediately, so put `logloss` or `mlogloss` last.
 - The user had a separate binary SSH brute-force model (`xg_bruteforce/`), its training PDF and a Kali/Patator lab-attack procedure PDF. **All of these were deleted on request.** Don't recreate them unless asked.
 
-### `all_attacks/`: 15-class attack classifier
+### `training_xgboost/`: 15-class attack classifier
 - **Task:** label each flow as Benign or one of the 14 attack types. The user's target is at least 95% recall for every class and at least 95% overall accuracy.
 - **Data:** every attack row plus a random 1,000,000 Benign rows (2,329,184 rows). Split 80/20 per class (stratified), with 10% of the training part held out as validation.
 - **Scripts** (run from the project root):
@@ -160,10 +163,10 @@ Final class counts:
 - **Outputs:** `all_attacks_xgb.json` (55.6 MB, under GitHub's 100 MB limit), `label_classes.json`, `model_features.json`, `class_weights.json`, `evaluation_report.txt`, `evaluation_report_tuned.txt`, `final_metrics.json`, `confusion_matrix_final.csv`, `confusion_matrix.png` (untuned), `confusion_matrix_final.png` (tuned, with counts), `per_class_recall.png`, `per_class_recall_tuned.png`, and the run logs.
 - **Model storage** (explained in `training_conclusion.pdf`): the model is JSON with 7,500 trees (500 rounds × 15 classes). `tree_info` gives each tree's class. Prediction uses rounds 0–497, which is 7,470 trees. Each tree is stored as parallel arrays per node (`left_children`, `right_children`, `split_indices`, `split_conditions`, `default_left`, …). The trees have 876,836 nodes and 442,168 leaves in total, with a median depth of 7 and a maximum of 10.
 - **Error pattern:** Benign ↔ Infilteration accounts for 19,743 of the 20,031 test mistakes. There are 288 other mistakes.
-- **Report:** `training_conclusion.pdf` (project root). It was built by a reportlab script kept outside the repo, and every number in it comes from `final_metrics.json`, `class_weights.json`, `label_classes.json` and `intermediate/9_final_summary.json`.
+- **Report:** `training_xgboost/training_conclusion.pdf`. It was built by a reportlab script kept outside the repo, and every number in it comes from `final_metrics.json`, `class_weights.json`, `label_classes.json` and `cleaning_dataset/9_final_summary.json`.
 
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.
 - **Standing rule (user request): after every step, update this CLAUDE.md to reflect the change, then commit and push to `main`.** This is durable authorization to push without asking each time.
-- The repo now mirrors the working tree, except that `.gitignore` excludes the CSV and Parquet files (over GitHub's 100 MB limit), so pushes carry only code, docs, the small `intermediate/` JSON records, and the PDF report. The old pipeline files (`merging.py`, `.pkl` models, old `step*.py`) were removed from the repo; they remain in earlier history. `README.md` is the GitHub front page; update it when results or scripts change.
+- The repo now mirrors the working tree, except that `.gitignore` excludes the CSV and Parquet files (over GitHub's 100 MB limit), so pushes carry only code, docs, the small JSON records and results, the trained model and the PDF reports. The old pipeline files (`merging.py`, `.pkl` models, old `step*.py`) were removed from the repo; they remain in earlier history. `README.md` is the GitHub front page; update it when results or scripts change.
 - Auth: the stored Git Credential Manager credential authenticates as `samiksha99004`. Collaborators with write access: `shraddhamaria25`, `shreshta-del` (owner/admin: `samiksha99004`).

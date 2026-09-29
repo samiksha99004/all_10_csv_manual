@@ -2,8 +2,10 @@
 
 The merged dataset (~16M rows) does not fit comfortably in RAM, so every step
 streams the previous step's Parquet file in chunks and writes a new one.
-Intermediate files live in ./intermediate so that ./original_csv ends up with
-only the 10 source CSVs + the final cleaned CSV.
+The large per-step Parquet files go to ./intermediate (temporary, ignored by
+git), so ./original_csv ends up with only the 10 source CSVs + the final
+cleaned CSV. The small records of the run (row counts, data types, summary,
+validation report) are written next to these scripts in ./cleaning_dataset.
 
 Import this module BEFORE pandas/sklearn: on this machine the Windows WMI
 service hangs, and Python's platform module queries WMI (via pandas, sklearn
@@ -30,10 +32,11 @@ import pyarrow.parquet as pq
 # machine often has only ~3 GB of commit headroom (see iter_chunks).
 pa.set_memory_pool(pa.system_memory_pool())
 
-# Scripts live in codes_for_cleaning/; the data folders are one level up
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Scripts live in cleaning_dataset/; the data folders are one level up
+RECORDS_DIR = os.path.dirname(os.path.abspath(__file__))     # small records of the run
+BASE_DIR = os.path.dirname(RECORDS_DIR)
 CSV_DIR = os.path.join(BASE_DIR, "original_csv")
-WORK_DIR = os.path.join(BASE_DIR, "intermediate")
+WORK_DIR = os.path.join(BASE_DIR, "intermediate")            # large temporary Parquet files
 os.makedirs(WORK_DIR, exist_ok=True)
 
 STEP1_OUT = os.path.join(WORK_DIR, "1_merged.parquet")
@@ -44,9 +47,10 @@ STEP5_OUT = os.path.join(WORK_DIR, "5_no_duplicates.parquet")
 STEP6_OUT = os.path.join(WORK_DIR, "6_no_conflicting_labels.parquet")
 STEP7_OUT = os.path.join(WORK_DIR, "7_fixed_dtypes.parquet")
 STEP8_OUT = os.path.join(WORK_DIR, "8_shuffled.parquet")
-DTYPES_JSON = os.path.join(WORK_DIR, "7_final_dtypes.json")
-SUMMARY_JSON = os.path.join(WORK_DIR, "9_final_summary.json")
-LOG_JSON = os.path.join(WORK_DIR, "cleaning_log.json")
+DTYPES_JSON = os.path.join(RECORDS_DIR, "7_final_dtypes.json")
+SUMMARY_JSON = os.path.join(RECORDS_DIR, "9_final_summary.json")
+LOG_JSON = os.path.join(RECORDS_DIR, "cleaning_log.json")
+VALIDATION_TXT = os.path.join(RECORDS_DIR, "10_validation_report.txt")
 FINAL_CSV = os.path.join(CSV_DIR, "cicids2018_full_cleaned.csv")
 
 CHUNK_ROWS = 100_000

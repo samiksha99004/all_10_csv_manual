@@ -8,7 +8,7 @@ The type is decided from the values, not the raw text. Some raw files store
 whole numbers in rounded scientific notation (e.g. "1.00E+07" in Flow IAT Max),
 so pandas reads the same column as int in one file and float in another.
 Pass 1 checks every value. Pass 2 casts. The chosen types are saved to
-intermediate/7_final_dtypes.json and checked again in step 10.
+cleaning_dataset/7_final_dtypes.json and checked again in step 10.
 """
 from common import STEP6_OUT, STEP7_OUT, DTYPES_JSON, iter_chunks, parquet_columns, ParquetSink, log_step, Timer  # keep first: disables the hanging WMI query
 

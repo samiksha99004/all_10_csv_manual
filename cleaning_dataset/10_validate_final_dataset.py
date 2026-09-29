@@ -18,10 +18,10 @@ Each check reports:
   INFO - worth knowing, not a problem (e.g. all-zero columns kept on purpose).
   PASS - no problems found.
 
-The report is printed and saved to intermediate/10_validation_report.txt.
+The report is printed and saved to cleaning_dataset/10_validation_report.txt.
 Exit code is 1 if any check FAILs.
 """
-from common import (FINAL_CSV, WORK_DIR, DTYPES_JSON, SUMMARY_JSON, LOG_JSON,
+from common import (FINAL_CSV, DTYPES_JSON, SUMMARY_JSON, LOG_JSON, VALIDATION_TXT,
                     EXTRA_ID_COLUMNS, source_csvs, Timer)  # keep first: disables the hanging WMI query
 
 import json
@@ -32,7 +32,7 @@ from collections import Counter, defaultdict
 import numpy as np
 import pandas as pd
 
-REPORT_TXT = os.path.join(WORK_DIR, "10_validation_report.txt")
+REPORT_TXT = VALIDATION_TXT
 # XGBoost rejects [ ] <, LightGBM rejects JSON special characters
 BAD_NAME_CHARS = set('[]<>{}",:')
 FLOAT32_MAX = float(np.finfo(np.float32).max)

@@ -2,7 +2,7 @@
 and print a summary: final shape, class distribution (value_counts on Label),
 data type + min/max per column, and rows dropped at each cleaning step.
 
-The summary is also saved to intermediate/9_final_summary.json for step 10.
+The summary is also saved to cleaning_dataset/9_final_summary.json for step 10.
 """
 from common import (STEP8_OUT, DTYPES_JSON, SUMMARY_JSON, LOG_JSON, FINAL_CSV, CSV_DIR,
                     iter_chunks, parquet_columns, Timer)  # keep first: disables the hanging WMI query
