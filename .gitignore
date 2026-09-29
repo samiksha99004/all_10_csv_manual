@@ -5,6 +5,9 @@
 # Temporary per-step Parquet files written by the cleaning pipeline (regenerated on each run)
 intermediate/
 
+# Isolation Forest train/test arrays written by 1_prepare_data.py (~650 MB)
+training_isolation_forest/data/
+
 # Python
 __pycache__/
 *.pyc

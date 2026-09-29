@@ -26,6 +26,7 @@ Full per-class results are in [`training_xgboost/training_conclusion.pdf`](train
 │                         and cleaning_dataset_report.pdf
 ├── training_xgboost/     15-class model: training, class-weight tuning, final test,
 │                         the trained model, results and training_conclusion.pdf
+├── training_isolation_forest/   Isolation Forest (unsupervised normal-vs-attack); run it with steps.txt
 ├── notebooks/            the Kaggle decision-tree notebook this project started from
 └── original_csv/         the 10 raw CSVs + the cleaned CSV (local only, not on GitHub)
 ```

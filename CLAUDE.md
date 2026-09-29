@@ -30,6 +30,10 @@ all_10_csv_manual/
 │   ├── train_all_attacks.py, tune_class_weights.py, evaluate_final.py
 │   ├── all_attacks_xgb.json + label/feature/weight JSONs, metrics, confusion matrices, plots, logs
 │   └── training_conclusion.pdf             training, tree storage, data types, testing, metrics, confusion matrix
+├── training_isolation_forest/              Isolation Forest (unsupervised, normal vs attack); see "Models" below
+│   ├── if_common.py, 1_prepare_data.py, 2_train_isolation_forest.py, 3_evaluate_test.py
+│   ├── steps.txt                           how to run it (the user runs it, not Claude)
+│   └── data/                               train/test arrays from step 1 (~650 MB, git-ignored)
 ├── notebooks/
 │   └── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
 ├── original_csv/                           10 raw day files + cicids2018_full_cleaned.csv (git-ignored)
@@ -164,6 +168,16 @@ Final class counts:
 - **Model storage** (explained in `training_conclusion.pdf`): the model is JSON with 7,500 trees (500 rounds × 15 classes). `tree_info` gives each tree's class. Prediction uses rounds 0–497, which is 7,470 trees. Each tree is stored as parallel arrays per node (`left_children`, `right_children`, `split_indices`, `split_conditions`, `default_left`, …). The trees have 876,836 nodes and 442,168 leaves in total, with a median depth of 7 and a maximum of 10.
 - **Error pattern:** Benign ↔ Infilteration accounts for 19,743 of the 20,031 test mistakes. There are 288 other mistakes.
 - **Report:** `training_xgboost/training_conclusion.pdf`. It was built by a reportlab script kept outside the repo, and every number in it comes from `final_metrics.json`, `class_weights.json`, `label_classes.json` and `cleaning_dataset/9_final_summary.json`.
+
+### `training_isolation_forest/`: Isolation Forest (written, not yet run)
+- **The user runs these scripts; Claude must not run them.** Instructions are in `steps.txt`.
+- Uses the same data rule as XGBoost (all attack rows + about 1M Benign) and a stratified 80/20 split per class, with no validation set.
+  - Step 1 reads the CSV in 200k-row chunks and saves `.npy` arrays to `data/`.
+  - Steps 2 and 3 memory-map those arrays and score in chunks.
+- **Model:** fitted on the Benign training rows only (novelty detection). 200 trees, `max_samples=256`, `n_jobs=-1`, features transformed with `log1p(x+1)`, constant columns dropped.
+- **Threshold:** chosen on the training split (most classes at 95% or more, then best accuracy). Step 3 also reports attack recall at 1/2/5/10/20% false-alarm rates, with those thresholds taken from the training Benign scores.
+- **Limitation:** it only says normal or attack. Per-attack recall uses the true labels. Infilteration and the large, uniform DoS/DDoS floods are expected to be hard for it.
+- **Outputs after the user runs it:** `isolation_forest.joblib`, `model_config.json`, `train_report.txt`, `test_report.txt`, `test_metrics.json`, `per_attack_recall.png`, `score_distribution.png`.
 
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.
