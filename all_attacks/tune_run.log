@@ -1,0 +1,80 @@
+Loading data from F:\all_10_csv_manual\original_csv\cicids2018_full_cleaned.csv ...
+  2,329,184 rows, 15 classes  (100s)
+Label
+Benign                      999610
+DDoS attacks-LOIC-HTTP      575364
+DDOS attack-HOIC            198861
+DoS attacks-Hulk            145199
+Bot                         144535
+Infilteration               117598
+SSH-Bruteforce               94041
+DoS attacks-GoldenEye        41406
+DoS attacks-Slowloris         9908
+DDOS attack-LOIC-UDP          1730
+Brute Force -Web               547
+Brute Force -XSS               226
+SQL Injection                   77
+DoS attacks-SlowHTTPTest        43
+FTP-BruteForce                  39
+
+Dropped 8 constant columns; using 70 features
+Split: fit 1,677,012 | validation 186,335 | test 465,837
+Predicting probabilities ...
+start (validation): feasible=True classes>=95%=9 mean recall=0.8209
+pass 1: feasible=True classes>=95%=10 mean recall=0.8490
+pass 2: feasible=True classes>=95%=10 mean recall=0.8490
+pass 3: feasible=True classes>=95%=10 mean recall=0.8490
+pass 4: feasible=True classes>=95%=10 mean recall=0.8490
+
+Multi-class model with tuned per-class decision weights (test set)
+========================================================================
+Weights searched on the validation set only; the test set was not used for tuning.
+
+Overall accuracy:   before 0.9571   after 0.9570
+Mean recall:        before 0.8343   after 0.8224
+Classes >= 95%:     before 8/15   after 10/15
+
+class                      test rows   weight  recall before  recall after
+Benign                       199,922        1          95.7%         95.7%
+DDoS attacks-LOIC-HTTP       115,073        1         100.0%         99.9%
+DDOS attack-HOIC              39,772        1         100.0%        100.0%
+DoS attacks-Hulk              29,040        1         100.0%        100.0%
+Bot                           28,907    0.125         100.0%        100.0%
+Infilteration                 23,520        1          51.8%         51.8%   < 95%
+SSH-Bruteforce                18,808        1         100.0%        100.0%
+DoS attacks-GoldenEye          8,281        1         100.0%        100.0%
+DoS attacks-Slowloris          1,982        4         100.0%        100.0%
+DDOS attack-LOIC-UDP             346      256          90.8%         99.1%
+Brute Force -Web                 109     90.5          92.7%         95.4%
+Brute Force -XSS                  45        1          93.3%         93.3%   < 95%
+SQL Injection                     15        1          80.0%         73.3%   < 95%
+DoS attacks-SlowHTTPTest           9        1          22.2%          0.0%   < 95%
+FTP-BruteForce                     8       16          25.0%         25.0%   < 95%
+
+Full report after tuning:
+
+                          precision    recall  f1-score   support
+
+                  Benign     0.9440    0.9572    0.9506    199922
+                     Bot     1.0000    0.9999    0.9999     28907
+        Brute Force -Web     0.3925    0.9541    0.5561       109
+        Brute Force -XSS     0.9545    0.9333    0.9438        45
+        DDOS attack-HOIC     1.0000    1.0000    1.0000     39772
+    DDOS attack-LOIC-UDP     0.7903    0.9913    0.8795       346
+  DDoS attacks-LOIC-HTTP     1.0000    0.9992    0.9996    115073
+   DoS attacks-GoldenEye     0.9998    0.9998    0.9998      8281
+        DoS attacks-Hulk     1.0000    1.0000    1.0000     29040
+DoS attacks-SlowHTTPTest     0.0000    0.0000    0.0000         9
+   DoS attacks-Slowloris     0.9990    1.0000    0.9995      1982
+          FTP-BruteForce     0.1429    0.2500    0.1818         8
+           Infilteration     0.5917    0.5177    0.5523     23520
+           SQL Injection     0.9167    0.7333    0.8148        15
+          SSH-Bruteforce     1.0000    1.0000    1.0000     18808
+
+                accuracy                         0.9570    465837
+               macro avg     0.7821    0.8224    0.7918    465837
+            weighted avg     0.9550    0.9570    0.9558    465837
+
+
+Saved class_weights.json, report and plot  (total 168s)
+EXIT 0

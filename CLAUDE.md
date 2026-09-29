@@ -7,7 +7,7 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 - one correct data type per column;
 - rows shuffled.
 
-**Status:** cleaning is done. No model has been trained; the user decides the next steps.
+**Status:** cleaning is done. Two models are trained: the SSH brute-force detector (`xg_bruteforce/`) and the 15-class all-attacks classifier (`all_attacks/`). The user decides the next steps.
 
 ## What the user wants (keep to this)
 - **Clean only; never drop columns.** No feature selection, no removal of zero or correlated columns, unless the user asks for it. An earlier version dropped columns (46 left) and the user rejected it.
@@ -28,6 +28,7 @@ all_10_csv_manual/
 │   ├── common.py                           paths (data folders are one level up), chunked Parquet I/O, log_step, WMI workaround
 │   └── 1_load_merge.py … 10_validate_final_dataset.py
 ├── xg_bruteforce/                          XGBoost Benign-vs-SSH-Bruteforce model (see "Models" below)
+├── all_attacks/                            XGBoost 15-class model: Benign + 14 attack types (see "Models" below)
 ├── original_csv/                           10 raw day files + cicids2018_full_cleaned.csv
 └── intermediate/                           small records only: cleaning_log.json, 7_final_dtypes.json,
                                             9_final_summary.json, 10_validation_report.txt
@@ -158,6 +159,19 @@ Final class counts:
   - `evaluation_report.txt`, `confusion_matrix.png`, `feature_importance.png`.
 - `xgboost` 3.4.1 was installed with the WMI-safe pip wrapper.
 - A written explanation of the training is in `training_xgboost_bruteforce.pdf` (project root).
+
+### `all_attacks/`: 15-class attack classifier
+- **Task:** label each flow as Benign or one of the 14 attack types. The user's target is at least 95% recall for every class and at least 95% overall accuracy.
+- **Data:** every attack row plus a random 1,000,000 Benign rows (2,329,184 rows). Split 80/20 per class (stratified), with 10% of the training part held out as validation.
+- **Scripts** (run from the project root):
+  1. `train_all_attacks.py` (about 17 minutes): XGBoost `multi:softprob`, depth 10, learning rate 0.1, up to 500 trees (497 used), 70 features. Uses square-root "balanced" sample weights. Early stopping uses the unweighted validation loss.
+  2. `tune_class_weights.py` (about 3 minutes): searches one decision weight per class on the validation set only; prediction is `argmax(probability * weight)`. Weights are saved in `class_weights.json`. `prepare_splits()` in the training script makes both scripts use the same split.
+- **Things that failed, don't repeat them:** full "balanced" weights plus early stopping on the weighted validation loss stopped at 22 trees. That run reached 85.5% overall and dropped Benign recall to 68%.
+- **Test result after tuning:** overall accuracy 95.70%, and 10 of 15 classes reach 95% recall. Below 95%:
+  - Infilteration 51.8% (23,520 test rows): its flows look like normal traffic, and it is the class most confused with Benign.
+  - Brute Force -XSS 93.3% (45 test rows), SQL Injection 73.3% (15), FTP-BruteForce 25.0% (8), DoS attacks-SlowHTTPTest 0% (9). Removing duplicates left these classes with too few rows to learn or test reliably.
+- **Open decision for the user:** merge the tiny classes into families (for example Web attack = BF-Web + BF-XSS + SQL), drop them from this model, or keep the 15 classes. Nothing is merged yet.
+- **Outputs:** `all_attacks_xgb.json` (55.6 MB, under GitHub's 100 MB limit), `label_classes.json`, `model_features.json`, `class_weights.json`, `evaluation_report.txt`, `evaluation_report_tuned.txt`, `confusion_matrix.png`, `per_class_recall.png`, `per_class_recall_tuned.png`, and the run logs.
 
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.

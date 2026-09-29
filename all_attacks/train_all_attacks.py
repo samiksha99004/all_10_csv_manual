@@ -110,7 +110,11 @@ def save_recall_bar(recalls, classes, path):
     fig.tight_layout(); fig.savefig(path, dpi=110); plt.close(fig)
 
 
-def main():
+def prepare_splits():
+    """Load the data and return the fixed fit / validation / test split.
+
+    Deterministic (fixed seeds), so tune_class_weights.py gets the same split.
+    """
     t0 = time.time()
     print(f"Loading data from {DATA_CSV} ...", flush=True)
     X, y_text = load_data()
@@ -130,8 +134,13 @@ def main():
     # stratified 80/20, then 10% of train for early stopping
     X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=TEST_SIZE, stratify=y, random_state=SEED)
     X_fit, X_val, y_fit, y_val = train_test_split(X_tr, y_tr, test_size=VALID_SIZE, stratify=y_tr, random_state=SEED)
-    del X, X_tr
     print(f"Split: fit {len(y_fit):,} | validation {len(y_val):,} | test {len(y_te):,}", flush=True)
+    return X_fit, X_val, X_te, y_fit, y_val, y_te, classes, features, len(y)
+
+
+def main():
+    t0 = time.time()
+    X_fit, X_val, X_te, y_fit, y_val, y_te, classes, features, n_rows = prepare_splits()
 
     # Milder-than-balanced weights: sqrt dampens the rare/common ratio so the rare
     # classes are lifted without collapsing Benign precision (full balancing tanked it).
@@ -169,7 +178,7 @@ def main():
     lines = [
         "CICIDS2018 multi-class attack classifier (XGBoost)",
         "=" * 64,
-        f"Rows: {len(y):,}   Classes: {len(classes)}   Features: {len(features)}",
+        f"Rows: {n_rows:,}   Classes: {len(classes)}   Features: {len(features)}",
         f"Benign sampled to {BENIGN_SAMPLE:,}; all attack rows kept. Split 80/20 per class.",
         f"Trees built: {model.best_iteration}",
         "",

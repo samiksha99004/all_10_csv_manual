@@ -1,0 +1,17 @@
+{
+  "Benign": 1.0,
+  "Bot": 0.125,
+  "Brute Force -Web": 90.5097,
+  "Brute Force -XSS": 1.0,
+  "DDOS attack-HOIC": 1.0,
+  "DDOS attack-LOIC-UDP": 256.0,
+  "DDoS attacks-LOIC-HTTP": 1.0,
+  "DoS attacks-GoldenEye": 1.0,
+  "DoS attacks-Hulk": 1.0,
+  "DoS attacks-SlowHTTPTest": 1.0,
+  "DoS attacks-Slowloris": 4.0,
+  "FTP-BruteForce": 16.0,
+  "Infilteration": 1.0,
+  "SQL Injection": 1.0,
+  "SSH-Bruteforce": 1.0
+}
