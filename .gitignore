@@ -14,3 +14,6 @@ venv/
 # OS
 Thumbs.db
 .DS_Store
+
+# Small result tables that are useful on GitHub
+!all_attacks/confusion_matrix_final.csv

@@ -20,9 +20,11 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 ```
 all_10_csv_manual/
 ├── CLAUDE.md
+├── README.md                               GitHub front page: project overview, how to run, results, model usage
 ├── cleaning_dataset_report.pdf             formatted report of the cleaning pipeline (source, steps, columns, classes)
 ├── training_xgboost_bruteforce.pdf         formatted report of how the SSH brute-force model was trained
 ├── ssh_bruteforce_lab_test_procedure.pdf   step-by-step lab test: Kali+Patator attack, Ubuntu victim, model detects
+├── training_conclusion.pdf                 15-class model: training, tree storage, data types, testing, metrics, confusion matrix
 ├── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
 ├── codes_for_cleaning/
 │   ├── common.py                           paths (data folders are one level up), chunked Parquet I/O, log_step, WMI workaround
@@ -165,16 +167,20 @@ Final class counts:
 - **Data:** every attack row plus a random 1,000,000 Benign rows (2,329,184 rows). Split 80/20 per class (stratified), with 10% of the training part held out as validation.
 - **Scripts** (run from the project root):
   1. `train_all_attacks.py` (about 17 minutes): XGBoost `multi:softprob`, depth 10, learning rate 0.1, up to 500 trees (497 used), 70 features. Uses square-root "balanced" sample weights. Early stopping uses the unweighted validation loss.
-  2. `tune_class_weights.py` (about 3 minutes): searches one decision weight per class on the validation set only; prediction is `argmax(probability * weight)`. Weights are saved in `class_weights.json`. `prepare_splits()` in the training script makes both scripts use the same split.
+  2. `tune_class_weights.py` (about 3 minutes): searches one decision weight per class on the validation set only; prediction is `argmax(probability * weight)`. Weights are saved in `class_weights.json`. `prepare_splits()` in the training script makes all three scripts use the same split.
+  3. `evaluate_final.py` (about 2 minutes): the final test. It predicts the 465,837 test rows with the tuned weights and writes `final_metrics.json` (overall and per-class precision/recall/F1/TP/FN/FP), plus `confusion_matrix_final.csv` and `.png`. Prediction speed is about 56,800 flows per second.
 - **Things that failed, don't repeat them:** full "balanced" weights plus early stopping on the weighted validation loss stopped at 22 trees. That run reached 85.5% overall and dropped Benign recall to 68%.
 - **Test result after tuning:** overall accuracy 95.70%, and 10 of 15 classes reach 95% recall. Below 95%:
   - Infilteration 51.8% (23,520 test rows): its flows look like normal traffic, and it is the class most confused with Benign.
   - Brute Force -XSS 93.3% (45 test rows), SQL Injection 73.3% (15), FTP-BruteForce 25.0% (8), DoS attacks-SlowHTTPTest 0% (9). Removing duplicates left these classes with too few rows to learn or test reliably.
 - **Open decision for the user:** merge the tiny classes into families (for example Web attack = BF-Web + BF-XSS + SQL), drop them from this model, or keep the 15 classes. Nothing is merged yet.
-- **Outputs:** `all_attacks_xgb.json` (55.6 MB, under GitHub's 100 MB limit), `label_classes.json`, `model_features.json`, `class_weights.json`, `evaluation_report.txt`, `evaluation_report_tuned.txt`, `confusion_matrix.png`, `per_class_recall.png`, `per_class_recall_tuned.png`, and the run logs.
+- **Outputs:** `all_attacks_xgb.json` (55.6 MB, under GitHub's 100 MB limit), `label_classes.json`, `model_features.json`, `class_weights.json`, `evaluation_report.txt`, `evaluation_report_tuned.txt`, `final_metrics.json`, `confusion_matrix_final.csv`, `confusion_matrix.png` (untuned), `confusion_matrix_final.png` (tuned, with counts), `per_class_recall.png`, `per_class_recall_tuned.png`, and the run logs.
+- **Model storage** (explained in `training_conclusion.pdf`): the model is JSON with 7,500 trees (500 rounds × 15 classes). `tree_info` gives each tree's class. Prediction uses rounds 0–497, which is 7,470 trees. Each tree is stored as parallel arrays per node (`left_children`, `right_children`, `split_indices`, `split_conditions`, `default_left`, …). The trees have 876,836 nodes and 442,168 leaves in total, with a median depth of 7 and a maximum of 10.
+- **Error pattern:** Benign ↔ Infilteration accounts for 19,743 of the 20,031 test mistakes. There are 288 other mistakes.
+- **Report:** `training_conclusion.pdf` (project root). It was built by a reportlab script kept outside the repo, and every number in it comes from `final_metrics.json`, `class_weights.json`, `label_classes.json` and `intermediate/9_final_summary.json`.
 
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.
 - **Standing rule (user request): after every step, update this CLAUDE.md to reflect the change, then commit and push to `main`.** This is durable authorization to push without asking each time.
-- The repo now mirrors the working tree, except that `.gitignore` excludes the CSV and Parquet files (over GitHub's 100 MB limit), so pushes carry only code, docs, the small `intermediate/` JSON records, and the PDF report. The old pipeline files (`merging.py`, `.pkl` models, old `step*.py`, README) were removed from the repo; they remain in earlier history.
+- The repo now mirrors the working tree, except that `.gitignore` excludes the CSV and Parquet files (over GitHub's 100 MB limit), so pushes carry only code, docs, the small `intermediate/` JSON records, and the PDF report. The old pipeline files (`merging.py`, `.pkl` models, old `step*.py`) were removed from the repo; they remain in earlier history. `README.md` is the GitHub front page; update it when results or scripts change.
 - Auth: the stored Git Credential Manager credential authenticates as `samiksha99004`. Collaborators with write access: `shraddhamaria25`, `shreshta-del` (owner/admin: `samiksha99004`).
