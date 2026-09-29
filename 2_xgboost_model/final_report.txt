@@ -1,0 +1,20 @@
+Two-level XGBoost - test split (465,837 rows)
+======================================================================
+Overall accuracy: 0.9626    classes at >= 95% recall: 9/15
+
+class                      test rows  precision   recall      F1
+Benign                       199,922      92.8%    99.0%   0.958
+DDoS attacks-LOIC-HTTP       115,073     100.0%   100.0%   1.000
+DDOS attack-HOIC              39,772     100.0%   100.0%   1.000
+DoS attacks-Hulk              29,040     100.0%   100.0%   1.000
+Bot                           28,907     100.0%   100.0%   1.000
+Infilteration                 23,520      80.2%    35.1%   0.488   < 95%
+SSH-Bruteforce                18,808     100.0%   100.0%   1.000
+DoS attacks-GoldenEye          8,281     100.0%   100.0%   1.000
+DoS attacks-Slowloris          1,982      99.9%    99.9%   0.999
+DDOS attack-LOIC-UDP             346      89.5%    93.9%   0.917   < 95%
+Brute Force -Web                 109      97.5%    70.6%   0.819   < 95%
+Brute Force -XSS                  45      97.8%    97.8%   0.978
+SQL Injection                     15      77.8%    46.7%   0.583   < 95%
+DoS attacks-SlowHTTPTest           9       0.0%     0.0%   0.000   < 95%
+FTP-BruteForce                     8      10.0%    12.5%   0.111   < 95%

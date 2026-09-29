@@ -1,0 +1,19 @@
+Level 2 - which attack (training fit)
+=============================================
+Rows 1,063,659   classes 14
+Training accuracy: 0.9999
+
+DDoS attacks-LOIC-HTTP       460,291   100.0%
+DDOS attack-HOIC             159,089   100.0%
+DoS attacks-Hulk             116,159   100.0%
+Bot                          115,628   100.0%
+Infilteration                 94,078   100.0%
+SSH-Bruteforce                75,233   100.0%
+DoS attacks-GoldenEye         33,125   100.0%
+DoS attacks-Slowloris          7,926   100.0%
+DDOS attack-LOIC-UDP           1,384   100.0%
+Brute Force -Web                 438   100.0%
+Brute Force -XSS                 181    98.9%
+SQL Injection                     62   100.0%
+DoS attacks-SlowHTTPTest          34    50.0%
+FTP-BruteForce                    31    77.4%

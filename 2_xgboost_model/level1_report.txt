@@ -1,0 +1,5 @@
+Level 1 - attack vs not (training fit)
+=============================================
+Rows 1,863,347
+Training accuracy: 0.9675
+Attack: precision 0.9950  recall 0.9478  F1 0.9708

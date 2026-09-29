@@ -20,3 +20,9 @@ Thumbs.db
 
 # Small result tables that are useful on GitHub
 !training_xgboost/confusion_matrix_final.csv
+
+# Two-level XGBoost train/test arrays
+multi_xgboost/data/
+
+2_xgboost_model/data/
+isolation_forest_and_xgboost_model/data/

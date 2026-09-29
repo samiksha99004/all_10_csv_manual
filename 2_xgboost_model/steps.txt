@@ -1,0 +1,11 @@
+STEPS - run in order, from  F:\all_10_csv_manual
+
+1. python multi_xgboost\1_prepare_data.py      (80/20 split, read in chunks -> data\)
+2. python multi_xgboost\2_train_level1.py       (level 1: attack vs not)
+3. python multi_xgboost\3_train_level2.py       (level 2: which attack)
+4. python multi_xgboost\4_evaluate.py           (test the two levels together)
+
+Result: final_report.txt
+
+Each step needs the one before it. If a step stops with no error or says
+"Unable to allocate", close other apps and run that step again.

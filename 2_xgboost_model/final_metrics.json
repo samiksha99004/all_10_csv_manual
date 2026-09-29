@@ -1,0 +1,96 @@
+{
+  "overall_accuracy": 0.9625770387496055,
+  "classes_meeting_95": 9,
+  "per_class": {
+    "Benign": {
+      "test_rows": 199922,
+      "precision": 0.9281888197825495,
+      "recall": 0.9898260321525395,
+      "f1": 0.958017041053447
+    },
+    "DDoS attacks-LOIC-HTTP": {
+      "test_rows": 115073,
+      "precision": 0.9998087904256151,
+      "recall": 0.9996697748385808,
+      "f1": 0.9997392777995047
+    },
+    "DoS attacks-Hulk": {
+      "test_rows": 29040,
+      "precision": 0.9998967048858589,
+      "recall": 1.0,
+      "f1": 0.9999483497753215
+    },
+    "Infilteration": {
+      "test_rows": 23520,
+      "precision": 0.8020033064280851,
+      "recall": 0.3506377551020408,
+      "f1": 0.4879448569653581
+    },
+    "DDOS attack-HOIC": {
+      "test_rows": 39772,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "Bot": {
+      "test_rows": 28907,
+      "precision": 1.0,
+      "recall": 0.9997924378178296,
+      "f1": 0.9998962081372821
+    },
+    "SSH-Bruteforce": {
+      "test_rows": 18808,
+      "precision": 0.9999468339624648,
+      "recall": 1.0,
+      "f1": 0.9999734162745567
+    },
+    "Brute Force -XSS": {
+      "test_rows": 45,
+      "precision": 0.9777777777777777,
+      "recall": 0.9777777777777777,
+      "f1": 0.9777777777777777
+    },
+    "DDOS attack-LOIC-UDP": {
+      "test_rows": 346,
+      "precision": 0.8953168044077136,
+      "recall": 0.9393063583815029,
+      "f1": 0.9167842031029619
+    },
+    "DoS attacks-GoldenEye": {
+      "test_rows": 8281,
+      "precision": 0.9998792124652736,
+      "recall": 0.9996377249124502,
+      "f1": 0.9997584541062802
+    },
+    "DoS attacks-Slowloris": {
+      "test_rows": 1982,
+      "precision": 0.9994954591321897,
+      "recall": 0.9994954591321897,
+      "f1": 0.9994954591321897
+    },
+    "Brute Force -Web": {
+      "test_rows": 109,
+      "precision": 0.9746835443037974,
+      "recall": 0.7064220183486238,
+      "f1": 0.8191489361702128
+    },
+    "SQL Injection": {
+      "test_rows": 15,
+      "precision": 0.7777777777777778,
+      "recall": 0.4666666666666667,
+      "f1": 0.5833333333333334
+    },
+    "DoS attacks-SlowHTTPTest": {
+      "test_rows": 9,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "FTP-BruteForce": {
+      "test_rows": 8,
+      "precision": 0.1,
+      "recall": 0.125,
+      "f1": 0.1111111111111111
+    }
+  }
+}
