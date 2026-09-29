@@ -6,7 +6,7 @@
 intermediate/
 
 # Isolation Forest train/test arrays written by 1_prepare_data.py (~650 MB)
-training_isolation_forest/data/
+xgboost_isolation_forest_training/data/
 
 # Python
 __pycache__/

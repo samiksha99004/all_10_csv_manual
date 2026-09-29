@@ -26,7 +26,8 @@ Full per-class results are in [`training_xgboost/training_conclusion.pdf`](train
 │                         and cleaning_dataset_report.pdf
 ├── training_xgboost/     15-class model: training, class-weight tuning, final test,
 │                         the trained model, results and training_conclusion.pdf
-├── training_isolation_forest/   Isolation Forest (unsupervised normal-vs-attack); run it with steps.txt
+├── xgboost_isolation_forest_training/   hybrid: Isolation Forest flags attacks, XGBoost names them;
+│                                         how it works and how to run it: steps.txt
 ├── notebooks/            the Kaggle decision-tree notebook this project started from
 └── original_csv/         the 10 raw CSVs + the cleaned CSV (local only, not on GitHub)
 ```
@@ -76,6 +77,22 @@ python training_xgboost/evaluate_final.py
 ```
 
 The model trains on a stratified 80% of each class and is tested on the remaining 20%. Benign is sampled to 1,000,000 rows, because the full 10.5 million rows don't fit in memory.
+
+## Hybrid: Isolation Forest + XGBoost
+
+`xgboost_isolation_forest_training/` chains two models:
+1. **Isolation Forest**, trained only on normal traffic, flags anything unusual.
+2. **XGBoost** names the attack for every flagged flow, or answers "Benign" to cancel a false alarm.
+
+Both use the same 80/20 split per class. Run the five scripts in order; `steps.txt` in that folder explains the training and the run order:
+
+```bash
+python xgboost_isolation_forest_training/1_prepare_data.py            # 80/20 split, read in chunks
+python xgboost_isolation_forest_training/2_train_isolation_forest.py  # stage 1 + thresholds
+python xgboost_isolation_forest_training/3_evaluate_isolation_forest.py
+python xgboost_isolation_forest_training/4_train_xgboost.py           # stage 2
+python xgboost_isolation_forest_training/5_evaluate_hybrid.py         # final result: hybrid_report.txt
+```
 
 ## Using the 15-class model
 

@@ -13,7 +13,7 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 - **Clean only; never drop columns.** No feature selection, no removal of zero or correlated columns, unless the user asks for it. An earlier version dropped columns (46 left) and the user rejected it.
 - The final CSV has **79 columns**: the raw columns minus `Timestamp`. There is no `source_file` column and no `time` feature. `Label` keeps the **original text** (not encoded).
 - `original_csv/` must hold exactly **11 CSVs**: the 10 raw files plus `cicids2018_full_cleaned.csv`. The large temporary Parquet files go in `intermediate/`, which git ignores. The small cleaning records live in `cleaning_dataset/`.
-- **Folder layout (set by the user; keep it):** only `README.md`, `CLAUDE.md` and `.gitignore` sit at the root, because GitHub, Claude Code and git only read them there. Everything else lives in `cleaning_dataset/`, `training_xgboost/`, `notebooks/` or `original_csv/`.
+- **Folder layout (set by the user; keep it):** only `README.md`, `CLAUDE.md` and `.gitignore` sit at the root, because GitHub, Claude Code and git only read them there. Everything else lives in `cleaning_dataset/`, `training_xgboost/`, `xgboost_isolation_forest_training/`, `notebooks/` or `original_csv/`.
 - One script per step, named `N_stepname.py`.
 - The user confirmed these removals: all exact duplicates (even though that leaves FTP-BruteForce and SlowHTTPTest with only a few dozen rows), all rows whose features appear with more than one label, and the 15 corrupt rows. Ask before removing anything else.
 
@@ -30,9 +30,10 @@ all_10_csv_manual/
 │   ├── train_all_attacks.py, tune_class_weights.py, evaluate_final.py
 │   ├── all_attacks_xgb.json + label/feature/weight JSONs, metrics, confusion matrices, plots, logs
 │   └── training_conclusion.pdf             training, tree storage, data types, testing, metrics, confusion matrix
-├── training_isolation_forest/              Isolation Forest (unsupervised, normal vs attack); see "Models" below
-│   ├── if_common.py, 1_prepare_data.py, 2_train_isolation_forest.py, 3_evaluate_test.py
-│   ├── steps.txt                           how to run it (the user runs it, not Claude)
+├── xgboost_isolation_forest_training/      hybrid: Isolation Forest (normal/attack) -> XGBoost (which attack)
+│   ├── if_common.py, 1_prepare_data.py, 2_train_isolation_forest.py, 3_evaluate_isolation_forest.py,
+│   │   4_train_xgboost.py, 5_evaluate_hybrid.py
+│   ├── steps.txt                           how it is trained and how to run it (the user runs it, not Claude)
 │   └── data/                               train/test arrays from step 1 (~650 MB, git-ignored)
 ├── notebooks/
 │   └── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
@@ -169,18 +170,25 @@ Final class counts:
 - **Error pattern:** Benign ↔ Infilteration accounts for 19,743 of the 20,031 test mistakes. There are 288 other mistakes.
 - **Report:** `training_xgboost/training_conclusion.pdf`. It was built by a reportlab script kept outside the repo, and every number in it comes from `final_metrics.json`, `class_weights.json`, `label_classes.json` and `cleaning_dataset/9_final_summary.json`.
 
-### `training_isolation_forest/`: Isolation Forest (written, not yet run)
-- **The user runs these scripts; Claude must not run them.** Instructions are in `steps.txt`.
-- Uses the same data rule as XGBoost (all attack rows + about 1M Benign) and a stratified 80/20 split per class, with no validation set.
-  - Step 1 reads the CSV in 200k-row chunks and saves `.npy` arrays to `data/`.
-  - Steps 2 and 3 memory-map those arrays and score in chunks.
-- **Model:** fitted on the Benign training rows only (novelty detection). 200 trees, `max_samples=256`, `n_jobs=-1`, features transformed with `log1p(x+1)`, constant columns dropped.
-- **Threshold:** chosen on the training split (most classes at 95% or more, then best accuracy). Step 3 also reports attack recall at 1/2/5/10/20% false-alarm rates, with those thresholds taken from the training Benign scores.
-- **Limitation:** it only says normal or attack. Per-attack recall uses the true labels. Infilteration and the large, uniform DoS/DDoS floods are expected to be hard for it.
-- **Outputs after the user runs it:** `isolation_forest.joblib`, `model_config.json`, `train_report.txt`, `test_report.txt`, `test_metrics.json`, `per_attack_recall.png`, `score_distribution.png`.
+### `xgboost_isolation_forest_training/`: hybrid Isolation Forest + XGBoost
+- **The user runs these scripts; Claude must not run them.** `steps.txt` holds only the run commands.
+- **The code was rebuilt on 2026-09-29 after the first run failed. The earlier results are void; the user must re-run steps 2–5.** The first version flagged 94.8% of normal traffic as attack (59% accuracy) because it had no feature scaling and its threshold rule maximised class coverage while ignoring Benign false alarms.
+- **The fix (from the IDS Isolation Forest literature):**
+  1. features are `log1p`-compressed **and standardised** with a `StandardScaler` fitted on the Benign training rows (the single biggest lever);
+  2. `contamination=0.02` (low), `max_samples=4096`, `n_estimators=300`;
+  3. the threshold is the point of maximum balanced accuracy (Youden's J) between normal and attack, so stage-1 accuracy is the best this Isolation Forest can give. The report also gives ROC-AUC (threshold-free separation) so the ceiling is visible. The user chose to keep the Isolation Forest for stage 1 (over a supervised binary model) knowing it caps stage-1 accuracy on this data.
+- **Design:** stage 1 (Isolation Forest) says normal vs attack; flows it flags go to stage 2 (XGBoost) which names the attack or answers Benign to cancel a false alarm; flows called normal are final Benign. Both models share the 80/20 split, so test rows are unseen by both.
+- **Data / memory:** all attack rows + ~1M Benign, stratified 80/20, no validation set. Step 1 reads the CSV in 200k-row chunks to `data/*.npy`; later steps memory-map and score in chunks.
+- **Stage 2 (step 4):** XGBoost on the same split, all 15 classes, raw (unscaled) features, settings from `training_xgboost/` (500 trees, depth 10, lr 0.1, sqrt-balanced weights), fixed 500 trees, no weight tuning.
+- **Honest expectation:** standardising should lift normal accuracy well above 95%, but the dense DoS/DDoS floods score like normal traffic, so at a 5% false-alarm ceiling the Isolation Forest may still catch few of them. The user's target (>= 95% on both normal AND attack for every class) may not be reachable from pure unsupervised Isolation Forest on this data; the test report will show the real trade-off. Naming the attack still relies on the XGBoost stage.
+- **Outputs after the user runs it:**
+  - Stage 1: `isolation_forest.joblib`, `model_config.json`, `train_report.txt`, `test_report.txt`, `test_metrics.json`, `per_attack_recall.png`, `score_distribution.png`.
+  - Stage 2: `xgboost_stage2.json`, `train_xgboost_report.txt`.
+  - Hybrid: `hybrid_report.txt`, `hybrid_metrics.json`, `hybrid_confusion_matrix.csv/.png`.
 
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.
 - **Standing rule (user request): after every step, update this CLAUDE.md to reflect the change, then commit and push to `main`.** This is durable authorization to push without asking each time.
+- **Exception:** the hybrid work (renaming the folder to `xgboost_isolation_forest_training/`, steps 4–5, steps.txt and the doc updates) was **not committed or pushed**, because the user said not to. Wait for the user before pushing it.
 - The repo now mirrors the working tree, except that `.gitignore` excludes the CSV and Parquet files (over GitHub's 100 MB limit), so pushes carry only code, docs, the small JSON records and results, the trained model and the PDF reports. The old pipeline files (`merging.py`, `.pkl` models, old `step*.py`) were removed from the repo; they remain in earlier history. `README.md` is the GitHub front page; update it when results or scripts change.
 - Auth: the stored Git Credential Manager credential authenticates as `samiksha99004`. Collaborators with write access: `shraddhamaria25`, `shreshta-del` (owner/admin: `samiksha99004`).
