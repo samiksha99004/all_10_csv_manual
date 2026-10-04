@@ -23,6 +23,7 @@ all_10_csv_manual/
 ├── CLAUDE.md, README.md, .gitignore        must stay at the root (README = GitHub front page)
 ├── model_comparison_report.pdf             the three models compared side by side
 ├── conference_paper.pdf                    write-up (added by the user)
+├── ssh_plan.txt                            plan to live-test 2_xgboost_model against a real SSH brute force
 ├── cleaning_dataset/
 │   ├── common.py                           paths (data folders one level up), chunked Parquet I/O, log_step, WMI workaround
 │   ├── 1_load_merge.py … 10_validate_final_dataset.py

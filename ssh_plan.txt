@@ -1,0 +1,102 @@
+SSH BRUTE-FORCE LIVE TEST - PLAN
+==================================
+Read this top to bottom. Only ONE step is still open (STEP A below). Nothing
+else needs to be redone.
+
+
+WHO DOES WHAT, AND WHY WINDOWS IS INVOLVED
+-------------------------------------------
+- KALI       = runs the attack, captures it, converts it to a CSV.
+               Its only job is to produce ONE file. Nothing else about Kali
+               matters once that file exists.
+- UBUNTU     = the victim being attacked. Nothing is done on it after the
+               capture. It has no further role in this plan.
+- WINDOWS (F:\all_10_csv_manual\) = where the trained model lives
+               (level1_binary_xgb.json, level2_multiclass_xgb.json, meta.json).
+               This is the ONLY place that can run the model, because this is
+               the only place that has it. Everything after "the CSV exists"
+               happens here, in this folder, done BY CLAUDE - not by a script
+               you write and run yourself. That is what went wrong last time:
+               a hand-written script with no confirmed file to read, run by
+               the user, with silent failure. It will not happen that way
+               again - Claude verifies the input file exists FIRST, then
+               writes and runs the code, in the same step.
+
+
+WHAT IS ALREADY DONE (do not redo any of this)
+-------------------------------------------
+1. Attack:   Patator, plain, no server tuning, 150-word wordlist.      DONE
+2. Capture:  tcpdump on Ubuntu, filtered to Kali IP + port 22.         DONE
+3. Convert:  CICFlowMeter-v3 (Java - the real CICIDS2018 tool), built
+             from source on Kali, run on the capture.
+             Result: ssh_attack.pcap_Flow.csv - 798 flows, 4662/4662
+             packets valid.                                           DONE
+
+Measured result once converted (fact, already checked against training data):
+    live Flow Duration median   : 2,071 us
+    live Tot Bwd Pkts median    : 3
+    training SSH-Bruteforce     : ~400,000 us duration, ~22 bwd pkts
+This is a large, real mismatch. It will be reported honestly in the final
+result - it is NOT something to fix by re-tuning the attack again (two
+earlier attempts already tried that, in opposite directions, both failed -
+see HISTORY below). The only things left to do are mechanical: get the file
+to Windows, run it through the model, report the real numbers.
+
+
+STEP A - THE ONLY OPEN STEP: GET THE FILE TO WINDOWS
+-------------------------------------------
+On Kali, confirm the file is actually there:
+    ls -la ssh_attack.pcap_Flow.csv
+Copy that exact file to Windows, into this exact folder, with this exact name:
+    F:\all_10_csv_manual\real_testing_v3.csv
+Use whatever transfer method already works for you (VirtualBox shared folder,
+scp, USB). Nothing else is required on Kali or Ubuntu after this.
+
+STOP HERE. Once the file is in that folder, tell Claude "the file is there."
+Do not write or run any alignment/prediction script yourself - Claude does
+that next, after confirming the file is really present.
+
+
+STEP B - WHAT CLAUDE DOES ONCE THE FILE ARRIVES (for your information only)
+-------------------------------------------
+1. Confirm F:\all_10_csv_manual\real_testing_v3.csv exists and open it.
+2. Compare its real column headers against the 78 names in
+   2_xgboost_model\data\meta.json. Build the rename map from what is
+   ACTUALLY in the file, not from an assumed mapping.
+3. Drop the non-feature columns (Flow ID, Src IP, Src Port, Dst IP,
+   Timestamp) the same way the training data dropped them.
+4. Run the result through 2_xgboost_model (level 1, then level 2).
+5. Report, using the real numbers only:
+     - confusion matrix (caught / missed / false alarms)
+     - accuracy, precision, recall, F1
+     - compared against the offline test result (96.3% / SSH-Bruteforce
+       100% recall)
+     - the honest duration/packet-count mismatch noted above, stated plainly,
+       not hidden.
+
+
+RULES (apply to every future session on this test)
+-------------------------------------------
+- Do not re-tune Patator threads or sshd MaxAuthTries. Tested twice already,
+  in opposite directions, both gave 0% recall. Re-testing a third value is a
+  guess with no better odds - it will not be done again.
+- Do not assume column names or units match training data without checking
+  the actual file. Check, then state the fact.
+- Scripts that read or convert this data are written and run by Claude in
+  the same step they are needed, not handed to the user to run separately.
+- If something errors, report the exact error text - do not guess a fix
+  before seeing it.
+
+
+HISTORY (for reference - already concluded, not to be repeated)
+-------------------------------------------
+Attempt 1 - Patator, no limits:            flows ~22s long   (55x too long)  -> 0% recall
+Attempt 2 - Patator + MaxAuthTries=1:      flows ~0.006s long (65x too short) -> 0% recall
+Attempt 3 - same attack + real CICFlowMeter-v3 converter: flows ~0.002s long
+            (193x too short), worse than attempt 2. Switching the converter
+            did not close the gap.
+Conclusion: this is most likely a genuine difference between 2026 live-LAN
+SSH traffic and the 2018 AWS testbed traffic the model was trained on - not a
+setting we can tune away. STEP A/B above exist to get one full, honest,
+measured result from this capture and report it - not to keep searching for
+a configuration that makes the mismatch disappear.
