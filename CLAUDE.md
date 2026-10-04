@@ -7,13 +7,13 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 - one correct data type per column;
 - rows shuffled.
 
-**Status:** cleaning is done, and one model is trained: the 15-class all-attacks classifier (`training_xgboost/`). The user decides the next steps.
+**Status:** cleaning is done, and one model is trained: the 15-class all-attacks classifier (`1_xgboost_model/`). The user decides the next steps.
 
 ## What the user wants (keep to this)
 - **Clean only; never drop columns.** No feature selection, no removal of zero or correlated columns, unless the user asks for it. An earlier version dropped columns (46 left) and the user rejected it.
 - The final CSV has **79 columns**: the raw columns minus `Timestamp`. There is no `source_file` column and no `time` feature. `Label` keeps the **original text** (not encoded).
 - `original_csv/` must hold exactly **11 CSVs**: the 10 raw files plus `cicids2018_full_cleaned.csv`. The large temporary Parquet files go in `intermediate/`, which git ignores. The small cleaning records live in `cleaning_dataset/`.
-- **Folder layout (set by the user; keep it):** only `README.md`, `CLAUDE.md` and `.gitignore` sit at the root, because GitHub, Claude Code and git only read them there. Everything else lives in `cleaning_dataset/`, `training_xgboost/`, `xgboost_isolation_forest_training/`, `notebooks/` or `original_csv/`.
+- **Folder layout (set by the user; keep it):** only `README.md`, `CLAUDE.md` and `.gitignore` sit at the root, because GitHub, Claude Code and git only read them there. Everything else lives in `cleaning_dataset/`, `1_xgboost_model/`, `isolation_forest_and_xgboost_model/`, `notebooks/` or `original_csv/`.
 - One script per step, named `N_stepname.py`.
 - The user confirmed these removals: all exact duplicates (even though that leaves FTP-BruteForce and SlowHTTPTest with only a few dozen rows), all rows whose features appear with more than one label, and the 15 corrupt rows. Ask before removing anything else.
 
@@ -21,16 +21,22 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 ```
 all_10_csv_manual/
 ├── CLAUDE.md, README.md, .gitignore        must stay at the root (README = GitHub front page)
+├── model_comparison_report.pdf             the three models compared side by side
+├── conference_paper.pdf                    write-up (added by the user)
 ├── cleaning_dataset/
 │   ├── common.py                           paths (data folders one level up), chunked Parquet I/O, log_step, WMI workaround
 │   ├── 1_load_merge.py … 10_validate_final_dataset.py
 │   ├── cleaning_log.json, 7_final_dtypes.json, 9_final_summary.json, 10_validation_report.txt   records of the run
 │   └── cleaning_dataset_report.pdf         formatted report of the cleaning pipeline (source, steps, columns, classes)
-├── training_xgboost/                       XGBoost 15-class model: Benign + 14 attack types (see "Models" below)
+├── 1_xgboost_model/                       XGBoost 15-class model: Benign + 14 attack types (see "Models" below)
 │   ├── train_all_attacks.py, tune_class_weights.py, evaluate_final.py
 │   ├── all_attacks_xgb.json + label/feature/weight JSONs, metrics, confusion matrices, plots, logs
-│   └── training_conclusion.pdf             training, tree storage, data types, testing, metrics, confusion matrix
-├── xgboost_isolation_forest_training/      hybrid: Isolation Forest (normal/attack) -> XGBoost (which attack)
+│   └── training_report.pdf             training, tree storage, data types, testing, metrics, confusion matrix
+├── 2_xgboost_model/                        two-level XGBoost: level 1 attack/not -> level 2 which attack (96.3%)
+│   ├── 1_prepare_data.py, 2_train_level1.py, 3_train_level2.py, 4_evaluate.py, xgb_common.py
+│   ├── level1_binary_xgb.json, level2_multiclass_xgb.json, metrics, reports, steps.txt
+│   └── training_report.pdf
+├── isolation_forest_and_xgboost_model/      hybrid: Isolation Forest (normal/attack) -> XGBoost (which attack)
 │   ├── if_common.py, 1_prepare_data.py, 2_train_isolation_forest.py, 3_evaluate_isolation_forest.py,
 │   │   4_train_xgboost.py, 5_evaluate_hybrid.py
 │   ├── steps.txt                           how it is trained and how to run it (the user runs it, not Claude)
@@ -153,7 +159,7 @@ Final class counts:
 - XGBoost early stopping follows the **last** metric in `eval_metric`. A metric that is perfect from round 1 (such as `aucpr` on an easy task) stops training almost immediately, so put `logloss` or `mlogloss` last.
 - The user had a separate binary SSH brute-force model (`xg_bruteforce/`), its training PDF and a Kali/Patator lab-attack procedure PDF. **All of these were deleted on request.** Don't recreate them unless asked.
 
-### `training_xgboost/`: 15-class attack classifier
+### `1_xgboost_model/`: 15-class attack classifier
 - **Task:** label each flow as Benign or one of the 14 attack types. The user's target is at least 95% recall for every class and at least 95% overall accuracy.
 - **Data:** every attack row plus a random 1,000,000 Benign rows (2,329,184 rows). Split 80/20 per class (stratified), with 10% of the training part held out as validation.
 - **Scripts** (run from the project root):
@@ -166,11 +172,11 @@ Final class counts:
   - Brute Force -XSS 93.3% (45 test rows), SQL Injection 73.3% (15), FTP-BruteForce 25.0% (8), DoS attacks-SlowHTTPTest 0% (9). Removing duplicates left these classes with too few rows to learn or test reliably.
 - **Open decision for the user:** merge the tiny classes into families (for example Web attack = BF-Web + BF-XSS + SQL), drop them from this model, or keep the 15 classes. Nothing is merged yet.
 - **Outputs:** `all_attacks_xgb.json` (55.6 MB, under GitHub's 100 MB limit), `label_classes.json`, `model_features.json`, `class_weights.json`, `evaluation_report.txt`, `evaluation_report_tuned.txt`, `final_metrics.json`, `confusion_matrix_final.csv`, `confusion_matrix.png` (untuned), `confusion_matrix_final.png` (tuned, with counts), `per_class_recall.png`, `per_class_recall_tuned.png`, and the run logs.
-- **Model storage** (explained in `training_conclusion.pdf`): the model is JSON with 7,500 trees (500 rounds × 15 classes). `tree_info` gives each tree's class. Prediction uses rounds 0–497, which is 7,470 trees. Each tree is stored as parallel arrays per node (`left_children`, `right_children`, `split_indices`, `split_conditions`, `default_left`, …). The trees have 876,836 nodes and 442,168 leaves in total, with a median depth of 7 and a maximum of 10.
+- **Model storage** (explained in `training_report.pdf`): the model is JSON with 7,500 trees (500 rounds × 15 classes). `tree_info` gives each tree's class. Prediction uses rounds 0–497, which is 7,470 trees. Each tree is stored as parallel arrays per node (`left_children`, `right_children`, `split_indices`, `split_conditions`, `default_left`, …). The trees have 876,836 nodes and 442,168 leaves in total, with a median depth of 7 and a maximum of 10.
 - **Error pattern:** Benign ↔ Infilteration accounts for 19,743 of the 20,031 test mistakes. There are 288 other mistakes.
-- **Report:** `training_xgboost/training_conclusion.pdf`. It was built by a reportlab script kept outside the repo, and every number in it comes from `final_metrics.json`, `class_weights.json`, `label_classes.json` and `cleaning_dataset/9_final_summary.json`.
+- **Report:** `1_xgboost_model/training_report.pdf`. It was built by a reportlab script kept outside the repo, and every number in it comes from `final_metrics.json`, `class_weights.json`, `label_classes.json` and `cleaning_dataset/9_final_summary.json`.
 
-### `xgboost_isolation_forest_training/`: hybrid Isolation Forest + XGBoost
+### `isolation_forest_and_xgboost_model/`: hybrid Isolation Forest + XGBoost
 - **The user runs these scripts; Claude must not run them.** `steps.txt` holds only the run commands.
 - **The code was rebuilt on 2026-09-29 after the first run failed. The earlier results are void; the user must re-run steps 2–5.** The first version flagged 94.8% of normal traffic as attack (59% accuracy) because it had no feature scaling and its threshold rule maximised class coverage while ignoring Benign false alarms.
 - **The fix (from the IDS Isolation Forest literature):**
@@ -179,7 +185,7 @@ Final class counts:
   3. the threshold is the point of maximum balanced accuracy (Youden's J) between normal and attack, so stage-1 accuracy is the best this Isolation Forest can give. The report also gives ROC-AUC (threshold-free separation) so the ceiling is visible. The user chose to keep the Isolation Forest for stage 1 (over a supervised binary model) knowing it caps stage-1 accuracy on this data.
 - **Design:** stage 1 (Isolation Forest) says normal vs attack; flows it flags go to stage 2 (XGBoost) which names the attack or answers Benign to cancel a false alarm; flows called normal are final Benign. Both models share the 80/20 split, so test rows are unseen by both.
 - **Data / memory:** all attack rows + ~1M Benign, stratified 80/20, no validation set. Step 1 reads the CSV in 200k-row chunks to `data/*.npy`; later steps memory-map and score in chunks.
-- **Stage 2 (step 4):** XGBoost on the same split, all 15 classes, raw (unscaled) features, settings from `training_xgboost/` (500 trees, depth 10, lr 0.1, sqrt-balanced weights), fixed 500 trees, no weight tuning.
+- **Stage 2 (step 4):** XGBoost on the same split, all 15 classes, raw (unscaled) features, settings from `1_xgboost_model/` (500 trees, depth 10, lr 0.1, sqrt-balanced weights), fixed 500 trees, no weight tuning.
 - **Honest expectation:** standardising should lift normal accuracy well above 95%, but the dense DoS/DDoS floods score like normal traffic, so at a 5% false-alarm ceiling the Isolation Forest may still catch few of them. The user's target (>= 95% on both normal AND attack for every class) may not be reachable from pure unsupervised Isolation Forest on this data; the test report will show the real trade-off. Naming the attack still relies on the XGBoost stage.
 - **Outputs after the user runs it:**
   - Stage 1: `isolation_forest.joblib`, `model_config.json`, `train_report.txt`, `test_report.txt`, `test_metrics.json`, `per_attack_recall.png`, `score_distribution.png`.
@@ -189,6 +195,6 @@ Final class counts:
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.
 - **Standing rule (user request): after every step, update this CLAUDE.md to reflect the change, then commit and push to `main`.** This is durable authorization to push without asking each time.
-- **Exception:** the hybrid work (renaming the folder to `xgboost_isolation_forest_training/`, steps 4–5, steps.txt and the doc updates) was **not committed or pushed**, because the user said not to. Wait for the user before pushing it.
+- **Exception:** the hybrid work (renaming the folder to `isolation_forest_and_xgboost_model/`, steps 4–5, steps.txt and the doc updates) was **not committed or pushed**, because the user said not to. Wait for the user before pushing it.
 - The repo now mirrors the working tree, except that `.gitignore` excludes the CSV and Parquet files (over GitHub's 100 MB limit), so pushes carry only code, docs, the small JSON records and results, the trained model and the PDF reports. The old pipeline files (`merging.py`, `.pkl` models, old `step*.py`) were removed from the repo; they remain in earlier history. `README.md` is the GitHub front page; update it when results or scripts change.
 - Auth: the stored Git Credential Manager credential authenticates as `samiksha99004`. Collaborators with write access: `shraddhamaria25`, `shreshta-del` (owner/admin: `samiksha99004`).
