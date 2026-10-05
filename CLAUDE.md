@@ -154,6 +154,17 @@ Final class counts:
 - **Heavy class imbalance:** Benign is 88.8% of rows. Use a stratified train/test split, and apply class weights or resampling to the training part only.
 - **Do these on the training split, not in the dataset:** scaling, label encoding (XGBoost needs integer labels; sklearn accepts text) and resampling. Doing them before the split leaks test information into training.
 
+## Live detection (requirement set 2026-10-05; the project is being built toward this)
+- **Goal:** while an attack runs, print every 2-3 seconds whether the traffic is NORMAL or ABNORMAL. When ABNORMAL, print a guess table of which attack it might be.
+- **Pipeline (in `live_detection/`, one step per script):**
+  1. `1_capture_rotate.sh` (victim): tcpdump writes a new pcap every 2 seconds (`-G 2`) into the shared folder, filtered to the attacker's IP and port 22.
+  2. `2_convert_loop.sh` (attacker): converts each finished 2-second pcap with the Java CICFlowMeter-v3 into a flow CSV. The newest pcap is skipped because tcpdump may still be writing it.
+  3. `3_live_watch.py` (Windows): picks up each new flow CSV, maps the Java columns to the 78 training features (microseconds, no scaling), scores it with a chosen model, and prints the verdict and guess table.
+- **Verdict rule:** ABNORMAL if at least one flow in the window is flagged as attack by level 1 (2-level model) or by the chosen model. NORMAL otherwise. Windows with few flows are noisy; the rule is written so it can be changed.
+- **Limits to report with every result:** 2-second windows hold only a few flows, so percentages per window are noisy. Each window is converted separately, so flows that cross a window boundary are split.
+- **Status:** the three scripts are written. They have NOT been tested end-to-end on live traffic. The watcher is tested on a saved CSV only.
+- **Attack procedure (order matters):** start the watcher, start the converter loop, start the victim capture, then run Patator from the attacker. Stop in reverse order.
+
 ## Models
 
 - `xgboost` 3.4.1 was installed with the WMI-safe pip wrapper.
