@@ -177,6 +177,14 @@ Final class counts:
 - **Error pattern:** Benign ↔ Infilteration accounts for 19,743 of the 20,031 test mistakes. There are 288 other mistakes.
 - **Report:** `1_xgboost_model/training_report.pdf`. It was built by a reportlab script kept outside the repo, and every number in it comes from `final_metrics.json`, `class_weights.json`, `label_classes.json` and `cleaning_dataset/9_final_summary.json`.
 
+### `2_xgboost_model/`: two-level XGBoost (96.3% offline)
+- **Design:** level 1 is binary — Benign vs not-Benign (attack/not). Only flows level 1 calls "attack" go to level 2, which outputs a probability for each of the 14 attack classes; the model's answer is whichever class has the highest probability, i.e. level 2 is a percentage table per flow, not a single fixed guess.
+- **Live SSH brute-force test (2026-10-05):** real Patator attack, Kali -> Ubuntu VM, captured and converted with the real Java CICFlowMeter-v3, 792 confirmed attack flows (`ssh_attack.pcap_Flow.csv`, kept local, not committed). Two earlier attempts (Python cicflowmeter tool, different `MaxAuthTries` settings) both gave 0% recall from flow-shape mismatches in opposite directions; see `ssh_plan.txt` for the full history.
+  - Level 1 flagged 711/792 (89.8%) as attack (the "something is wrong" gate still works reasonably well).
+  - Level 2 named them: Infilteration 44.7%, SSH-Bruteforce 29.0% (correct), Slowloris 16.0%, Benign 10.2% (missed at the gate).
+  - **Overall recall on this live capture: 29.0%**, vs 100% SSH-Bruteforce recall on the offline 20% test split. Cause: live flows are much shorter/burstier than training (duration median 2,073us vs ~400,000us; ~3 bwd packets vs ~22) — closer in shape to Slowloris/Infilteration than to the SSH-Bruteforce flows the model was trained on. This looks like a genuine 2018-testbed-vs-live-LAN difference, not a tunable setting (3 attempts, 3 flow shapes, same outcome direction on naming).
+  - No PDF/txt written for this test per user request; numbers above are the full record.
+
 ### `isolation_forest_and_xgboost_model/`: hybrid Isolation Forest + XGBoost
 - **The user runs these scripts; Claude must not run them.** `steps.txt` holds only the run commands.
 - **The code was rebuilt on 2026-09-29 after the first run failed. The earlier results are void; the user must re-run steps 2–5.** The first version flagged 94.8% of normal traffic as attack (59% accuracy) because it had no feature scaling and its threshold rule maximised class coverage while ignoring Benign false alarms.
