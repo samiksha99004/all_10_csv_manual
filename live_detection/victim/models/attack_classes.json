@@ -1,0 +1,16 @@
+{
+  "0": "DDoS attacks-LOIC-HTTP",
+  "1": "DoS attacks-Hulk",
+  "2": "Infilteration",
+  "3": "DDOS attack-HOIC",
+  "4": "Bot",
+  "5": "SSH-Bruteforce",
+  "6": "Brute Force -XSS",
+  "7": "DDOS attack-LOIC-UDP",
+  "8": "DoS attacks-GoldenEye",
+  "9": "DoS attacks-Slowloris",
+  "10": "Brute Force -Web",
+  "11": "SQL Injection",
+  "12": "DoS attacks-SlowHTTPTest",
+  "13": "FTP-BruteForce"
+}

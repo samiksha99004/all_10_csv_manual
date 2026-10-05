@@ -156,7 +156,9 @@ Final class counts:
 
 ## Live detection (requirement set 2026-10-05; the project is being built toward this)
 - **Goal:** while an attack runs, print every 2-3 seconds whether the traffic is NORMAL or ABNORMAL. When ABNORMAL, print a guess table of which attack it might be.
-- **Pipeline (in `live_detection/`, one step per script):**
+- **Architecture (set 2026-10-05, current):** the VICTIM does everything: capture, conversion, feature selection, scoring and the terminal table. Windows is not part of the live pipeline, and the attacker only attacks. The victim needs a copy of the 2-level model files (`live_detection/victim/models/`) and of the Java converter (`CICFlowMeter-4.0`, one-time copy from the attacker). The monitor is `live_detection/victim/live_monitor.py`. It prints the attacker IP (the source with the most port-22 flows), a NORMAL/ABNORMAL verdict per 2-second window, a guess table for that window, and cumulative counts, redrawn every 2 seconds.
+- **Earlier shared-folder version (superseded):** `1_capture_rotate.sh`, `2_convert_loop.sh` and `3_live_watch.py` used the Windows shared folder and are kept only as history.
+- **Earlier pipeline (superseded, for reference):**
   1. `1_capture_rotate.sh` (victim): tcpdump writes a new pcap every 2 seconds (`-G 2`) into the shared folder, filtered to the attacker's IP and port 22.
   2. `2_convert_loop.sh` (attacker): converts each finished 2-second pcap with the Java CICFlowMeter-v3 into a flow CSV. The newest pcap is skipped because tcpdump may still be writing it.
   3. `3_live_watch.py` (Windows): picks up each new flow CSV, maps the Java columns to the 78 training features (microseconds, no scaling), scores it with a chosen model, and prints the verdict and guess table.
