@@ -34,7 +34,7 @@ all_10_csv_manual/
 │   ├── all_attacks_xgb.json + label/feature/weight JSONs, metrics, confusion matrices, plots, logs
 │   └── training_report.pdf             training, tree storage, data types, testing, metrics, confusion matrix
 ├── 2_xgboost_model/                        two-level XGBoost: level 1 attack/not -> level 2 which attack (96.3%)
-│   ├── 1_prepare_data.py, 2_train_level1.py, 3_train_level2.py, 4_evaluate.py, xgb_common.py
+│   ├── 1_prepare_data.py, 2_train_level1.py, 3_train_level2.py, 4_evaluate.py, xgb_common.py, live_detect.py
 │   ├── level1_binary_xgb.json, level2_multiclass_xgb.json, metrics, reports, steps.txt
 │   └── training_report.pdf
 ├── isolation_forest_and_xgboost_model/      hybrid: Isolation Forest (normal/attack) -> XGBoost (which attack)
@@ -178,6 +178,9 @@ Final class counts:
 - **Report:** `1_xgboost_model/training_report.pdf`. It was built by a reportlab script kept outside the repo, and every number in it comes from `final_metrics.json`, `class_weights.json`, `label_classes.json` and `cleaning_dataset/9_final_summary.json`.
 
 ### `2_xgboost_model/`: two-level XGBoost (96.3% offline)
+- **Live-test status (2026-10-05, updated):** five live SSH brute-force attempts, see `ssh_plan.txt`. Only attempt 3 (Java CICFlowMeter-v3, Ubuntu victim) gave usable naming: SSH-Bruteforce 29.0%, Infilteration 44.7%, Slowloris 16.0%, Benign 10.2%. Attempts 4-5 (Hydra, Kali-to-Kali, Python `cicflowmeter`) gave 0% recall. Their packet counts match training (18-24 vs 22), but flows are ~46-52x too long because each packet gap is ~47-53x training's.
+- **Column alignment (verified):** Python `cicflowmeter` writes snake_case names and time columns in **seconds**; training uses microseconds, so the 23 time columns are multiplied by 1e6. Round-trip test: 5,000 training test rows written in Python format and read back gave zero feature error and 100% prediction agreement. The Python converter's flag and window values still differ from training on the same SSH traffic, so its 0% results are not a fair read of the model.
+- **Live detection script:** `2_xgboost_model/live_detect.py` (replay and follow modes, console output only). Replay tested on the Kali file; follow mode not yet tested.
 - **Design:** level 1 is binary — Benign vs not-Benign (attack/not). Only flows level 1 calls "attack" go to level 2, which outputs a probability for each of the 14 attack classes; the model's answer is whichever class has the highest probability, i.e. level 2 is a percentage table per flow, not a single fixed guess.
 - **Live SSH brute-force test (2026-10-05):** real Patator attack, Kali -> Ubuntu VM, captured and converted with the real Java CICFlowMeter-v3, 792 confirmed attack flows (`ssh_attack.pcap_Flow.csv`, kept local, not committed). Two earlier attempts (Python cicflowmeter tool, different `MaxAuthTries` settings) both gave 0% recall from flow-shape mismatches in opposite directions; see `ssh_plan.txt` for the full history.
   - Level 1 flagged 711/792 (89.8%) as attack (the "something is wrong" gate still works reasonably well).

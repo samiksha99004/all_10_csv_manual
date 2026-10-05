@@ -1,102 +1,111 @@
-SSH BRUTE-FORCE LIVE TEST - PLAN
-==================================
-Read this top to bottom. Only ONE step is still open (STEP A below). Nothing
-else needs to be redone.
+SSH BRUTE-FORCE LIVE TEST - PLAN (v5: updated methods after attempts 4-5)
+==========================================================================
 
+WHO DOES WHAT
+-------------
+ATTACKER (Kali)  = runs the attack, captures traffic, converts it to flow rows.
+VICTIM           = Ubuntu (attempts 1-3) or a second Kali with openssh-server (attempts 4-5).
+WINDOWS          = has the trained model (2_xgboost_model/level1_binary_xgb.json,
+                   level2_multiclass_xgb.json, data/meta.json). All scoring happens
+                   here, done by Claude.
 
-WHO DOES WHAT, AND WHY WINDOWS IS INVOLVED
--------------------------------------------
-- KALI       = runs the attack, captures it, converts it to a CSV.
-               Its only job is to produce ONE file. Nothing else about Kali
-               matters once that file exists.
-- UBUNTU     = the victim being attacked. Nothing is done on it after the
-               capture. It has no further role in this plan.
-- WINDOWS (F:\all_10_csv_manual\) = where the trained model lives
-               (level1_binary_xgb.json, level2_multiclass_xgb.json, meta.json).
-               This is the ONLY place that can run the model, because this is
-               the only place that has it. Everything after "the CSV exists"
-               happens here, in this folder, done BY CLAUDE - not by a script
-               you write and run yourself. That is what went wrong last time:
-               a hand-written script with no confirmed file to read, run by
-               the user, with silent failure. It will not happen that way
-               again - Claude verifies the input file exists FIRST, then
-               writes and runs the code, in the same step.
+ATTEMPTS SO FAR (all measured on the real model, no values edited)
+-------------------------------------------------------------------
+1. Patator, no limits, Ubuntu victim, Python cicflowmeter
+     flows ~22 s (55x too long)            -> 0% recall
+2. Patator + MaxAuthTries=1, Python cicflowmeter
+     flows ~0.006 s (65x too short)        -> 0% recall
+3. Patator, Java CICFlowMeter-v3 (the CICIDS2018 converter), Ubuntu victim
+     flows ~0.002 s median, 2 fwd / 3 bwd pkts
+     level 1 flagged 711/792 (89.8%) as attack
+     level 2 final labels: Infilteration 44.7%, SSH-Bruteforce 29.0%,
+                           Slowloris 16.0%, Benign 10.2%
+     -> overall SSH-Bruteforce recall 29.0%
+4. Hydra, Kali-to-Kali, Python cicflowmeter (file kali_to_kali_attack.csv, 273 attack flows)
+     flows 17.2 s median, 18 fwd / 23 bwd pkts, per-packet gap 0.41 s
+     level 1 flagged 0%; level 2 mean: Infilteration 91%, DDoS-HOIC 8%, SSH 0.8%
+     -> recall 0%
+5. Hydra, Kali-to-Kali, Python cicflowmeter (file live_kali_to_kali.csv, 196 attack flows)
+     flows 19.3 s median, 19 fwd / 24 bwd pkts, per-packet gap 0.46 s
+     level 1 flagged 0%; level 2 mean: Infilteration 99.7%, SSH 0.2%
+     -> recall 0%
 
+WHAT THE MEASUREMENTS SHOW
+--------------------------
+Training SSH-Bruteforce (94,041 rows): median 374,609 us duration, 22 fwd / 22 bwd pkts,
+  Flow IAT Mean 8,686 us.
+- Attempt 3 (Java) packet counts were far too low (2 / 3). Attempt 4-5 (Hydra) packet
+  counts now match training (18-24). Bundling several attempts per connection did
+  change the shape.
+- Attempts 4-5 have the right packet count but flows ~46-52x too long, because each
+  packet gap is ~47-53x training's. The per-packet timing is the remaining mismatch.
+- Time units: the Python converter writes seconds, training uses microseconds. The
+  seconds-to-microseconds scaling was checked (unit check = 1.0000, fwd_iat_tot =
+  flow_duration) and the round-trip test (5,000 training rows written in Python format,
+  read back through the live pipeline) gave zero error and 100% agreement.
+- Column meaning: even after the round-trip test, the Python converter's values differ
+  from training on the same SSH traffic (examples: ACK Flag Count training median 0 vs
+  Python 40; Fwd Pkt Len Min training 0 vs Python 66; Flow IAT Min training 4 us vs
+  Python 0). The Java converter matches training better on these features (ACK median
+  4; Flow IAT Min median 34 us) but is not identical.
+  So the Python converter is not a like-for-like substitute for the Java converter,
+  and its 0% results cannot be read as the model's performance on Hydra traffic.
 
-WHAT IS ALREADY DONE (do not redo any of this)
--------------------------------------------
-1. Attack:   Patator, plain, no server tuning, 150-word wordlist.      DONE
-2. Capture:  tcpdump on Ubuntu, filtered to Kali IP + port 22.         DONE
-3. Convert:  CICFlowMeter-v3 (Java - the real CICIDS2018 tool), built
-             from source on Kali, run on the capture.
-             Result: ssh_attack.pcap_Flow.csv - 798 flows, 4662/4662
-             packets valid.                                           DONE
+STEP 1 - CONVERT WITH THE JAVA CONVERTER (next step, no new attack needed)
+--------------------------------------------------------------------------
+Goal: produce features with the same converter the training data used.
+  - On the attacker Kali, check the pcap is still there:
+        ls -la kali_to_kali_attack.pcap
+    If it is, no new attack is needed.
+  - Run the Java CICFlowMeter-v3 on it with the same command as attempt 3.
+  - Rename the output to kali_to_kali_java.csv.
+  - Send it to F:\all_10_csv_manual\ (Windows will run the same analysis).
+  - If the pcap is gone, a new Hydra run is needed, captured to pcap and converted
+    with the Java tool.
 
-Measured result once converted (fact, already checked against training data):
-    live Flow Duration median   : 2,071 us
-    live Tot Bwd Pkts median    : 3
-    training SSH-Bruteforce     : ~400,000 us duration, ~22 bwd pkts
-This is a large, real mismatch. It will be reported honestly in the final
-result - it is NOT something to fix by re-tuning the attack again (two
-earlier attempts already tried that, in opposite directions, both failed -
-see HISTORY below). The only things left to do are mechanical: get the file
-to Windows, run it through the model, report the real numbers.
+STEP 2 - 1-SECOND FLOW WINDOWS (for per-second results)
+-------------------------------------------------------
+Training SSH flows are under 0.6 s (max 567,266 us), so a 1-second flow timeout cuts no
+training-length flow.
+  - Find the flow timeout in the converter on Kali (do not assume the name):
+      Java: grep -rni "timeout" <CICFlowMeter source>
+  - Set it to 1 second (1,000,000 us in the Java tool, or 1 in Python-tool seconds).
+    Confirm units in the source first. Rebuild if the Java source was changed.
+  - Re-convert the same pcap. Check max(flow_duration) <= 1 s and the row count before
+    sending.
+  - Per-second rows let live_detect.py show a per-second table.
+  - Limit: 1-second windows still carry the per-packet gap (~0.4 s), so each window
+    holds only ~2-3 packets. Shorter windows alone will not make the model recognize
+    the attack. The gap must be understood first (see STEP 3).
 
+STEP 3 - FIND WHERE THE PER-PACKET GAP COMES FROM (not yet done)
+-----------------------------------------------------------------
+  - Check the pcap's packet timestamps on the attacker Kali (tshark, or Wireshark
+    IO graph) for the attack connection. Check whether the ~0.4 s gaps come from the
+    victim's sshd (slow auth response), from Hydra waiting between tries, or from the
+    network.
+  - Only after that is known, decide whether the attack setup should change.
 
-STEP A - THE ONLY OPEN STEP: GET THE FILE TO WINDOWS
--------------------------------------------
-On Kali, confirm the file is actually there:
-    ls -la ssh_attack.pcap_Flow.csv
-Copy that exact file to Windows, into this exact folder, with this exact name:
-    F:\all_10_csv_manual\real_testing_v3.csv
-Use whatever transfer method already works for you (VirtualBox shared folder,
-scp, USB). Nothing else is required on Kali or Ubuntu after this.
+STEP 4 - LIVE DETECTION (after STEPS 1-3)
+-----------------------------------------
+  - 2_xgboost_model/live_detect.py: follow mode re-reads a growing CSV every second,
+    scores only new rows, and prints a per-second table. Replay mode scores a whole
+    file once (tested on kali_to_kali_attack.csv: works, 0% attack flagged, as expected
+    for that file).
+  - Follow mode is not tested yet. It needs a growing CSV from a live converter run.
+  - Output is console only. No report or CSV files are written.
 
-STOP HERE. Once the file is in that folder, tell Claude "the file is there."
-Do not write or run any alignment/prediction script yourself - Claude does
-that next, after confirming the file is really present.
+RULES
+-----
+- Do not edit attack or flow values to make the model detect them. Fix the converter
+  or the traffic, then re-test.
+- Do not re-tune Patator threads or sshd MaxAuthTries blindly. Attempts 1-2 failed
+  in opposite directions.
+- Check every column, unit and flow shape against the actual file. State the measured
+  fact, not a guess.
+- Report exact errors, not guesses, when something breaks.
 
-
-STEP B - WHAT CLAUDE DOES ONCE THE FILE ARRIVES (for your information only)
--------------------------------------------
-1. Confirm F:\all_10_csv_manual\real_testing_v3.csv exists and open it.
-2. Compare its real column headers against the 78 names in
-   2_xgboost_model\data\meta.json. Build the rename map from what is
-   ACTUALLY in the file, not from an assumed mapping.
-3. Drop the non-feature columns (Flow ID, Src IP, Src Port, Dst IP,
-   Timestamp) the same way the training data dropped them.
-4. Run the result through 2_xgboost_model (level 1, then level 2).
-5. Report, using the real numbers only:
-     - confusion matrix (caught / missed / false alarms)
-     - accuracy, precision, recall, F1
-     - compared against the offline test result (96.3% / SSH-Bruteforce
-       100% recall)
-     - the honest duration/packet-count mismatch noted above, stated plainly,
-       not hidden.
-
-
-RULES (apply to every future session on this test)
--------------------------------------------
-- Do not re-tune Patator threads or sshd MaxAuthTries. Tested twice already,
-  in opposite directions, both gave 0% recall. Re-testing a third value is a
-  guess with no better odds - it will not be done again.
-- Do not assume column names or units match training data without checking
-  the actual file. Check, then state the fact.
-- Scripts that read or convert this data are written and run by Claude in
-  the same step they are needed, not handed to the user to run separately.
-- If something errors, report the exact error text - do not guess a fix
-  before seeing it.
-
-
-HISTORY (for reference - already concluded, not to be repeated)
--------------------------------------------
-Attempt 1 - Patator, no limits:            flows ~22s long   (55x too long)  -> 0% recall
-Attempt 2 - Patator + MaxAuthTries=1:      flows ~0.006s long (65x too short) -> 0% recall
-Attempt 3 - same attack + real CICFlowMeter-v3 converter: flows ~0.002s long
-            (193x too short), worse than attempt 2. Switching the converter
-            did not close the gap.
-Conclusion: this is most likely a genuine difference between 2026 live-LAN
-SSH traffic and the 2018 AWS testbed traffic the model was trained on - not a
-setting we can tune away. STEP A/B above exist to get one full, honest,
-measured result from this capture and report it - not to keep searching for
-a configuration that makes the mismatch disappear.
+HISTORY
+-------
+Attempts 1-5 above. The Java-converter analysis for attempt 3 is in CLAUDE.md under
+2_xgboost_model/. The Kali-to-Kali analysis is printed in chat only.
