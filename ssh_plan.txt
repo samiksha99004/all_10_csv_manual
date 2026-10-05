@@ -1,181 +1,237 @@
-SSH BRUTE-FORCE LIVE TEST - RUNBOOK (v6: Kali-to-Kali, Patator, 1-second flows)
+SSH BRUTE-FORCE LIVE TEST - FRESH RUNBOOK (Kali to Kali, Patator, 1-second flows)
+==============================================================================
+Start from zero. No earlier CSV or pcap is used. The old attack CSVs were deleted.
+
+RULES
+-----
+- No value is edited, scaled by hand, or relabelled to improve a result.
+- Units come from the converter. The Java CICFlowMeter-v3 writes time in MICROSECONDS,
+  the same as the training data, so no conversion is applied. If a value is not in
+  microseconds, STOP and report it.
+- Every setting change on Kali is written in this file BEFORE the attack runs.
+- If a command fails, copy the exact error text. Do not guess a fix.
+- Do not change sshd or Patator settings to chase a result.
+- Commands marked <CHECK> must be checked on the machine first. Do not guess them.
+
+WHY THIS SETUP
+--------------
+- Training SSH flows: median 0.37 s, 22 forward / 22 backward packets, Flow IAT Mean 8,686 us.
+- Python cicflowmeter is NOT used: its column values differ from training.
+- Java CICFlowMeter-v3 is the converter CICIDS2018 used.
+- The flow timeout is set to 1 second, so each flow row covers at most 1 second.
+
+MACHINES
+--------
+ATTACKER = Kali VM (Patator, tcpdump, tshark, Java CICFlowMeter-v3)   IP: <ATTACKER_IP>
+VICTIM   = second Kali VM with openssh-server                         IP: <VICTIM_IP>
+WINDOWS  = F:\all_10_csv_manual  (trained model lives here)
+Both VMs must be on the same network. Record the VirtualBox network mode of both VMs.
+
+FILE NAMES USED
+---------------
+pcap (capture)      : kali_patator.pcap
+flow CSV (converter): kali_patator_1s.csv   (renamed from the converter's output name)
+Windows target      : F:\all_10_csv_manual\kali_patator_1s.csv
+
 =============================================================================
+STEP 0 - CHECK NETWORK ON BOTH VMS
+=============================================================================
+Run on the ATTACKER Kali:
+    ip -br a                       (note the interface with <ATTACKER_IP>, e.g. eth0)
+    ip -br a | grep -E "eth|enp"   (shorter list of network interfaces)
 
-GOAL
-----
-Capture a real SSH brute-force attack, convert it with the SAME converter and the SAME
-units as the training data, cut it into 1-second flow rows, move the CSV to Windows,
-and score it with the trained 2-level model. Report whatever the model says.
-No values are edited, scaled by hand, or re-labelled to improve a result.
+Run on the VICTIM Kali:
+    ip -br a                       (note <VICTIM_IP>)
 
-INPUT FEATURES (decided)
------------------------
-- The saved models were trained on 78 features (2_xgboost_model/data/meta.json).
-- 8 of them are never used in any tree split in either model (checked in the saved JSON):
-    Bwd PSH Flags, Bwd URG Flags, Fwd Byts/b Avg, Fwd Pkts/b Avg, Fwd Blk Rate Avg,
-    Bwd Byts/b Avg, Bwd Pkts/b Avg, Bwd Blk Rate Avg
-- The other 70 features are used. The models need all 78 columns in order, so the
-  8 unused columns are kept in the input and filled with 0. A 70-column input would
-  fail, and a 70-feature model would need retraining (a different model, own test).
-- Check run: all 465,837 training test rows predicted three ways (8 columns as stored,
-  set to 0, set to random values 1-1000). Result: level 1 and final labels identical
-  on every row in both alternative runs (0 rows differ). Original accuracy 96.26%.
+Test the link from the attacker:
+    ping -c 10 <VICTIM_IP>
+    Record the average round-trip time. Expected: well below 0.4 s.
 
-WHY EACH STEP IS HERE (measured, see CLAUDE.md)
-------------------------------------------------
-- Training SSH flows: median 0.37 s, 22 fwd / 22 bwd packets, Flow IAT Mean 8,686 us.
-- Python cicflowmeter (snake_case names) gave 17-19 s flows with the right packet count,
-  but its flag and window values differ from training. So it is NOT used any more.
-- Java CICFlowMeter-v3 is the converter CICIDS2018 used. It writes time in MICROSECONDS,
-  which matches training. So no unit conversion is needed. Keep it that way.
-- Flow timeout is set to 1 s so each flow row covers at most 1 s of traffic.
+=============================================================================
+STEP 1 - VICTIM KALI: SSH SERVER AND TEST ACCOUNT
+=============================================================================
+Run on the VICTIM Kali:
+    sudo apt update
+    sudo apt install -y openssh-server
+    sudo systemctl enable --now ssh
+    sudo systemctl status ssh           (must show: active (running))
 
-NETWORK / MACHINES
-------------------
-ATTACKER  = Kali VM (runs Patator, tcpdump, CICFlowMeter-v3). IP: <ATTACKER_IP>
-VICTIM    = second Kali VM with openssh-server.                  IP: <VICTIM_IP>
-WINDOWS   = F:\all_10_csv_manual (trained model lives here).
-Check the IPs on each VM first:  ip a
-Both VMs must be on the same network (same as attempts 4-5).
+Create the test account (use a name you will use again in step 5):
+    sudo adduser <USER>                 (set a password. Write it down; it goes in the wordlist)
 
-============================================================================
-PART A - VICTIM KALI (run once)
-============================================================================
-A1. Install and start the SSH server:
-      sudo apt update
-      sudo apt install -y openssh-server
-      sudo systemctl enable --now ssh
-      sudo systemctl status ssh          (must show "active (running)")
+Record the sshd settings as they are (do not change them):
+    grep -v '^#' /etc/ssh/sshd_config | grep . > ~/sshd_used.txt
+    cat ~/sshd_used.txt
 
-A2. Create the test account (skip if it already exists):
-      sudo adduser <USER>                (set a password you will put in the wordlist)
+Check whether PAM adds a delay after a failed login (a possible cause of the gap):
+    grep -r -i faildelay /etc/pam.d/ || echo "no faildelay line"
 
-A3. Confirm the victim's IP:
-      ip a                               (note <VICTIM_IP>)
+Record the result of these checks in the RECORD section.
 
-Do NOT change any sshd setting (no MaxAuthTries, no LoginGraceTime). Record the
-sshd config as it is:  grep -v '^#' /etc/ssh/sshd_config | grep .  > ~/sshd_used.txt
+=============================================================================
+STEP 2 - ATTACKER KALI: TOOLS
+=============================================================================
+Run on the ATTACKER Kali:
+    sudo apt update
+    sudo apt install -y patator tcpdump tshark wireshark-common
+    patator ssh_login --help             (read the options; do not guess flags)
+    which capinfos                       (capinfos comes from wireshark-common)
 
-============================================================================
-PART B - ATTACKER KALI: CONVERTER SETTING (one-time change)
-============================================================================
-B1. Find the flow timeout settings in the Java converter source. Do not guess names:
-      grep -rn "flowTimeout\|activityTimeout" <CICFlowMeter_source_dir>
-    Write down each line you find, with its current value and unit.
+=============================================================================
+STEP 3 - ATTACKER KALI: WORDLIST
+=============================================================================
+Create a wordlist that contains the victim's real password for <USER> at a known line.
+Use a fixed list so every run is the same:
+    cd ~
+    printf '%s\n' <one password per line, 150 lines as in attempts 4-5> > wordlist.txt
+    wc -l wordlist.txt                  (record the number of lines)
+    grep -n -x '<USER_PASSWORD>' wordlist.txt   (record the line number of the real password)
 
-B2. Set both timeouts to 1 second, in microseconds (the Java tool uses us):
-      flowTimeout     = 1000000
-      activityTimeout = 1000000
-    Only change values that are in microseconds. Check the unit next to each value first.
+=============================================================================
+STEP 4 - ATTACKER KALI: CONVERTER SETTING (1-second flow timeout)
+=============================================================================
+4a. Find the converter source directory. <CHECK>
+    It should be the same directory used for attempt 3. Look at the shell history:
+        history | grep -i -E "gradle|java|CICFlowMeter"
+    Write the source directory here: <CICFLOWMETER_DIR>
 
-B3. Rebuild the converter with the SAME build command you used for attempt 3.
+4b. Find the flow timeout settings. Do not guess the names:
+        grep -rn "flowTimeout\|activityTimeout" <CICFLOWMETER_DIR>
+    Write down every line found, with its current value and unit.
 
-B4. Verify the change took effect with the test in step D6 (max Flow Duration must be
-    <= 1000000). Do not proceed if that check fails.
+4c. Change both to 1 second, in microseconds (1000000). Change only values whose unit is
+    microseconds. Write the old and new lines here before saving:
+        old: ____________________   new: flowTimeout     = 1000000
+        old: ____________________   new: activityTimeout = 1000000
 
-============================================================================
-PART C - ATTACKER KALI: CAPTURE AND ATTACK
-============================================================================
-C1. Confirm the capture interface name:
-      ip a                               (usually eth0; use the one with <ATTACKER_IP>)
+4d. Rebuild the converter with the SAME build command used for attempt 3. <CHECK>
+    If the source has build.gradle and a gradlew file, attempt 3 probably used
+    ./gradlew. Confirm from the history before running anything. Write the exact command:
+        <BUILD_COMMAND>
 
-C2. Start the capture BEFORE the attack. Filter to the victim and port 22:
-      sudo tcpdump -i <IFACE> host <VICTIM_IP> and port 22 -w kali_patator.pcap
+4e. Write the exact run command used for attempt 3 here. <CHECK>
+        <CONVERT_COMMAND>   (input file goes in place of the pcap name in step 7)
 
-C3. In a second terminal, check Patator's options first (do not guess flags):
-      patator ssh_login --help
+Step 4 is complete only when the rebuild finished without errors and the
+verification gate in step 7e passes.
 
-C4. Run the attack (wordlist = the same file used in attempts 4-5):
-      patator ssh_login host=<VICTIM_IP> user=<USER> password=FILE0 0=/path/to/wordlist.txt -x ignore:mesg='Authentication failed.'
-    Let it finish. Note the start and end times.
+=============================================================================
+STEP 5 - ATTACKER KALI: START CAPTURE, THEN ATTACK
+=============================================================================
+5a. Confirm the capture interface (from step 0). Set it:
+        IFACE=<interface_name>
 
-C5. Stop tcpdump with Ctrl+C in its terminal.
+5b. Start the capture BEFORE the attack. Use a second terminal for the attack:
+        sudo tcpdump -i $IFACE -w kali_patator.pcap host <VICTIM_IP> and port 22
 
-C6. Check how long the capture really lasted:
-      capinfos kali_patator.pcap
-    (if capinfos is missing: tshark -r kali_patator.pcap -T fields -e frame.time_epoch | sort -n | sed -n '1p;$p')
-    Record the duration. Do not assume 20-30 minutes.
+5c. In a second terminal, run the attack with the wordlist from step 3:
+        patator ssh_login host=<VICTIM_IP> user=<USER> password=FILE0 0=$HOME/wordlist.txt -x ignore:mesg='Authentication failed.'
+    Confirm the options match the output of: patator ssh_login --help  (step 2)
+    Do not change the thread count. Note the start time and the end time:
+        start: ________   end: ________
 
-============================================================================
-PART D - ATTACKER KALI: CONVERT PCAP TO FLOW CSV
-============================================================================
-D1. Convert the pcap with the Java CICFlowMeter-v3, using the SAME command as attempt 3,
-    with the input file kali_patator.pcap. Name the output:
-      kali_patator_1s.csv
-    If the output name differs, rename it:  mv <output>.csv kali_patator_1s.csv
+5d. Let the attack finish. Then stop tcpdump with Ctrl+C in its terminal.
 
-D2. Check the header is the Java format (starts with "Flow ID,Src IP,Src Port,Dst IP,Dst Port,...").
-      head -1 kali_patator_1s.csv
+5e. Check how long the capture lasted:
+        capinfos kali_patator.pcap
+    Record the "Capture duration" value. If it is far from the expected length, stop
+    and report it before going on.
 
-D3. Count the rows:
-      wc -l kali_patator_1s.csv
+=============================================================================
+STEP 6 - ATTACKER KALI: CHECK THE PCAP BEFORE CONVERTING
+=============================================================================
+6a. Count the packets on port 22:
+        tshark -r kali_patator.pcap -Y "tcp.port==22" | wc -l
 
-D4. Keep only the attack flows (attacker -> victim, port 22). Print the count:
-      awk -F, 'NR>1 && $2=="<ATTACKER_IP>" && $5=="22"' kali_patator_1s.csv | wc -l
-
-D5. Confirm the time unit is microseconds (values are whole numbers of us, and
-    Flow Duration is at most 1,000,000 if the 1 s timeout worked):
-      awk -F, 'NR>1 {if($8>m)m=$8} END{print "max Flow Duration (us) =", m}' kali_patator_1s.csv
-
-D6. VERIFICATION GATE (stop here if it fails):
-      max Flow Duration must be <= 1000000.
-      If it is larger, the timeout change in Part B did not take effect. Go back to B1.
-
-D7. Measure packets per flow (training median: 22 fwd / 22 bwd):
-      awk -F, 'NR>1 && $2=="<ATTACKER_IP>" && $5=="22"{print $9, $10}' kali_patator_1s.csv | sort -n | awk '{f[NR]=$1; b[NR]=$2} END{print "median fwd =", f[int(NR/2)+1], " median bwd =", b[int(NR/2)+1]}'
-    (Column 9 = Total Fwd Packet, column 10 = Total Bwd packets in the Java header.)
-
-D8. Measure the gap between packets from the pcap (training Flow IAT mean median: 8,686 us):
-      tshark -r kali_patator.pcap -Y "tcp.port==22" -T fields -e frame.time_delta_displayed | sort -n | awk '{a[NR]=$1} END{print "median gap (s) =", a[int(NR/2)+1]}'
-    Record the number. Do not change any setting to adjust it. Report it as measured.
-
-D9. Count TCP connections (shows whether Patator reused connections):
-      tshark -r kali_patator.pcap -q -z conv,tcp | tail -5
+6b. Count the TCP connections (shows whether Patator reused connections):
+        tshark -r kali_patator.pcap -q -z conv,tcp | tail -5
     Record the number of TCP conversations.
 
-============================================================================
-PART E - SEND THE CSV TO WINDOWS
-============================================================================
-E1. Copy kali_patator_1s.csv to Windows, into this exact path:
-      F:\all_10_csv_manual\kali_patator_1s.csv
+6c. Measure the gap between packets from the pcap (training: about 8,686 us in Flow IAT Mean):
+        tshark -r kali_patator.pcap -Y "tcp.port==22" -T fields -e frame.time_delta_displayed | sort -n | awk '{a[NR]=$1} END{print "median gap (s) =", a[int(NR/2)+1]}'
+    Record the number. This is measured, not changed. It measures every port-22
+    packet, not each flow, so it is a close proxy only.
+
+=============================================================================
+STEP 7 - ATTACKER KALI: CONVERT PCAP TO FLOW CSV (Java CICFlowMeter-v3)
+=============================================================================
+7a. Run the converter with the command from step 4e, with kali_patator.pcap as input.
+    Find the output file the converter created:
+        ls -lt | head -5
+
+7b. Rename it to the file name used everywhere in this plan:
+        mv <CONVERTER_OUTPUT>.csv kali_patator_1s.csv
+
+7c. Check the header is the Java format (starts with "Flow ID,Src IP,Src Port,Dst IP,Dst Port,Protocol,Timestamp,Flow Duration"):
+        head -1 kali_patator_1s.csv
+
+7d. Count all rows, then attack rows (source = attacker, destination port 22):
+        wc -l kali_patator_1s.csv
+        awk -F, 'NR>1 && $2=="<ATTACKER_IP>" && $5=="22"' kali_patator_1s.csv | wc -l
+
+7e. VERIFICATION GATE (stop if it fails):
+        awk -F, 'NR>1 {if($8+0>m)m=$8+0} END{print "max Flow Duration (us) =", m}' kali_patator_1s.csv
+    The number must be <= 1000000. If it is larger, the timeout in step 4 did not take effect.
+    Go back to step 4b.
+
+7f. Check the units. Values in the Flow Duration column are whole microseconds, so the
+    smallest non-zero value should be above 1 and not in fractions of a second:
+        awk -F, 'NR>1 && $8+0>0 {print $8}' kali_patator_1s.csv | sort -n | head -3
+
+7g. Measure packets per flow for the attack flows (training median: 22 forward, 22 backward):
+        awk -F, 'NR>1 && $2=="<ATTACKER_IP>" && $5=="22"{print $9, $10}' kali_patator_1s.csv | sort -n -k1,1 | awk '{f[NR]=$1; b[NR]=$2} END{print "median fwd =", f[int(NR/2)+1], " median bwd =", b[int(NR/2)+1]}'
+    Columns: $9 = Total Fwd Packet, $10 = Total Bwd packets.
+
+7h. Record the time range covered (timestamps are the flow start time):
+        awk -F, 'NR>1{print $7}' kali_patator_1s.csv | sort | sed -n '1p;$p'
+
+=============================================================================
+STEP 8 - ATTACKER KALI: SEND THE CSV TO WINDOWS
+=============================================================================
+8a. Copy kali_patator_1s.csv to Windows into exactly this path:
+        F:\all_10_csv_manual\kali_patator_1s.csv
     Use the same transfer method as attempt 3 (VirtualBox shared folder, scp or USB).
+    Write the method used here: ____________
 
-E2. Tell Claude "the file is there". Do not run any script on Windows yourself.
+8b. Do not send the pcap or other files.
 
-============================================================================
-PART F - WINDOWS: TEST THE MODEL (Claude runs this, not the user)
-============================================================================
-F1. Confirm the file exists and print its header and row count.
-F2. Check the header is the Java format. If it is, run the analysis on the
-    Java column names (live_detect.py currently expects the Python snake_case names,
-    so it needs the Java mapping before it can read this file).
-F3. Score every flow with level 1, then level 2, and print:
-      - level 1: attack / benign counts and percentages
-      - level 2: final labels and mean percentage per attack class
-      - SSH-Bruteforce recall on the confirmed attack flows (src = Kali, dst port 22)
-      - per-second table (timestamp of each flow row)
-      - the flow-shape numbers next to the training medians
-    Whatever the model outputs is reported as is.
+=============================================================================
+STEP 9 - WINDOWS: CHECK THE FILE (PowerShell, run by the user)
+=============================================================================
+    Test-Path "F:\all_10_csv_manual\kali_patator_1s.csv"
+    Get-Content "F:\all_10_csv_manual\kali_patator_1s.csv" -TotalCount 1
+    (Get-Content "F:\all_10_csv_manual\kali_patator_1s.csv").Count
 
-============================================================================
-RULES
-============================================================================
-- No values are edited, scaled, or re-labelled to improve a result. Units come from
-  the converter (microseconds). If they don't match, stop and report.
-- Do not change sshd settings or Patator thread counts to chase a result.
-- Each setting change made on Kali must be written in PART B (or added here) before the
-  attack is run.
-- If a command fails, report the exact error text. Do not guess a fix.
-- No report or txt files are created on Windows for the test. The result is printed.
+Tell Claude the file is there. Claude then checks the header and row count, and
+scores the file with the trained model.
 
+=============================================================================
+STEP 10 - WINDOWS: SCORE THE FILE (Claude runs this, not the user)
+=============================================================================
+10a. The trained model reads the 78 training features. The Java file names differ from
+     the training names, so a Java-to-training name map is needed. That map is written
+     and tested with the round-trip check before scoring this file. <PENDING>
+10b. The 8 features never used by the model are kept in the input and set to 0. (See CLAUDE.md.)
+10c. The output is printed in chat only, with:
+       - level 1: attack / benign counts and percentages
+       - level 2: final labels and mean percentage per attack class
+       - SSH-Bruteforce recall on the attack flows (source = attacker, destination port 22)
+       - per-second table (timestamp of each flow row)
+       - flow-shape numbers next to the training medians
+       - the packet gap and the TCP conversation count from step 6
+10d. The result is reported as measured, including 0% if that is what the model gives.
+
+=============================================================================
 RECORD (fill in after the run)
--------------------------------
-Capture duration (capinfos):          ____
-Flow timeout set to (us):             ____
-Max Flow Duration in CSV (us):        ____
-Rows in CSV / attack rows:            ____ / ____
-Median fwd / bwd packets:             ____ / ____
-Median gap between packets (s):       ____
-TCP conversations in pcap:            ____
-Level 1 attack %:                     ____
-Level 2 SSH-Bruteforce recall %:      ____
+=============================================================================
+Capture duration (capinfos):                ____
+Flow timeout set to (us):                   ____
+Max Flow Duration in CSV (us):              ____
+Rows in CSV / attack rows:                  ____ / ____
+Median forward / backward packets:          ____ / ____
+Median gap between packets (s), pcap:       ____
+TCP conversations in pcap:                  ____
+Average ping round-trip (s):                ____
+faildelay in PAM (step 1):                  ____
+Level 1 attack %:                           ____
+Level 2 SSH-Bruteforce recall %:            ____

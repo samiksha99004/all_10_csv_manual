@@ -1,0 +1,108 @@
+REAL TESTING REPORT - 3 MODELS ON REAL SSH BRUTE-FORCE CAPTURES
+=================================================================
+Date of run: 2026-10-05
+
+MODELS (named by folder, so no numbering confusion)
+--------------------------------------------------
+A. 2-level XGBoost      (2_xgboost_model)            level 1 attack/benign, then level 2 names the attack
+B. Single 15-class XGBoost (1_xgboost_model)          one model, tuned class weights, labels all 15 classes
+C. Hybrid Isolation Forest + XGBoost (isolation_forest_and_xgboost_model)
+                                                     stage 1 Isolation Forest flags, stage 2 XGBoost names
+                                                     (artifacts dated 2026-09-29, void until steps 2-5 re-run)
+
+HOW TO READ THE NUMBERS
+-----------------------
+Every flow in these files is attack traffic (attacker -> port 22), so there are no
+benign ground-truth flows. Therefore:
+- Detection = share of flows the model calls an attack (not Benign).
+- Recall = share of flows the model names SSH-Bruteforce.
+- Accuracy on these files = recall, because every flow is an attack.
+- Precision cannot be measured (no confirmed Benign flows).
+- "Benign" in the tables below = flows the model missed (called normal).
+Nothing was edited, scaled or relabelled. The 8 features the models never use are set to 0.
+
+
+==================================================================
+CSV 1: kali_patator_1s.csv
+==================================================================
+Source:      Kali-to-Kali Patator. Pcap captured on the victim, converted on the attacker
+             with Java CICFlowMeter-v3.
+Flows:       182, all attacker 10.151.232.192 -> victim port 22 (all confirmed attacks)
+Flow timing: max Flow Duration 106,814,584 us (106.8 s). The 1-second cut did NOT apply.
+             The "_1s" in the name is misleading. The 1-second gate failed.
+
+A. 2-level XGBoost
+   Level 1 flagged attack: 12 / 182 (6.6%)
+   Final labels:
+     SSH-Bruteforce          8    4.40%
+     DoS attacks-Slowloris   4    2.20%
+     Benign (missed)       170   93.41%
+   Level-2 average over the 12 flagged flows:
+     SSH-Bruteforce 68.13%, Slowloris 28.97%, Infilteration 2.33%, Hulk 0.50%,
+     GoldenEye 0.02%, SlowHTTPTest 0.01%, HOIC 0.01%, FTP-BruteForce 0.01%,
+     SQL Injection 0.01%, LOIC-HTTP 0.00%, Bot 0.00%, Brute Force-Web 0.00%,
+     LOIC-UDP 0.00%, Brute Force-XSS 0.00%
+
+B. Single 15-class XGBoost
+   Final labels:
+     SSH-Bruteforce        171   93.96%
+     Benign (missed)        11    6.04%
+   Other 13 classes: 0
+
+C. Hybrid IF + XGBoost
+   Stage 1 flagged attack: 182 / 182 (100%)
+   Final labels:
+     SSH-Bruteforce        171   93.96%
+     Benign (missed)        11    6.04%
+   Other 13 classes: 0
+
+Models B and C give the same label on all 182 flows.
+
+
+==================================================================
+CSV 2: ssh_attack_java.csv
+==================================================================
+Source:      Ubuntu victim, SSH brute force (attempt 3). Java CICFlowMeter-v3 output
+             (microseconds). Copied from /home/kali/cfm_output/ssh_attack.pcap_Flow.csv.
+Flows:       797 total. 792 are attacker 192.168.1.7 -> port 22 (confirmed attacks).
+             The other 5 flows are not counted.
+
+A. 2-level XGBoost
+   Level 1 flagged attack: 711 / 792 (89.8%)
+   Final labels (792 confirmed attacks):
+     Infilteration           354   44.70%
+     SSH-Bruteforce          230   29.04%
+     DoS attacks-Slowloris   127   16.04%
+     Benign (missed)          81   10.23%
+   Other 11 classes: 0
+
+B. Single 15-class XGBoost
+   Final labels (792 confirmed attacks):
+     Benign (missed)         598   75.51%
+     DoS attacks-Slowloris   121   15.28%
+     SSH-Bruteforce           58    7.32%
+     Infilteration            15    1.89%
+   Other 11 classes: 0
+
+C. Hybrid IF + XGBoost
+   Stage 1 flagged attack: 792 / 792 (100%)
+   Final labels (792 confirmed attacks):
+     Benign (missed)         622   78.54%
+     DoS attacks-Slowloris   111   14.02%
+     SSH-Bruteforce           58    7.32%
+     Infilteration             1    0.13%
+   Other 12 classes: 0
+
+
+==================================================================
+SUMMARY (recall = SSH-Bruteforce share)
+==================================================================
+| CSV                  | A. 2-level | B. 15-class | C. Hybrid |
+|----------------------|------------|-------------|-----------|
+| kali_patator_1s.csv  | 4.40%      | 93.96%      | 93.96%    |
+| ssh_attack_java.csv  | 29.04%     | 7.32%       | 7.32%     |
+
+Caveats:
+- Two captures only. Not general performance.
+- Hybrid results come from artifacts CLAUDE.md marks as void until steps 2-5 are re-run.
+- Offline test accuracy on the 2018 split: A 96.3%, B 95.7%. Not measured on these captures.
