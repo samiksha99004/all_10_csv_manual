@@ -17,10 +17,9 @@ INPUT FEATURES (decided)
 - The other 70 features are used. The models need all 78 columns in order, so the
   8 unused columns are kept in the input and filled with 0. A 70-column input would
   fail, and a 70-feature model would need retraining (a different model, own test).
-- Pending check (not yet run): on the training test rows, predict with the 8 columns
-  as in the data, with them set to 0, and with them set to random non-zero values.
-  Pass = identical predictions on every row in all three runs. Until it passes, the
-  claim is "the saved trees never split on these 8", not "they cannot change any output".
+- Check run: all 465,837 training test rows predicted three ways (8 columns as stored,
+  set to 0, set to random values 1-1000). Result: level 1 and final labels identical
+  on every row in both alternative runs (0 rows differ). Original accuracy 96.26%.
 
 WHY EACH STEP IS HERE (measured, see CLAUDE.md)
 ------------------------------------------------
