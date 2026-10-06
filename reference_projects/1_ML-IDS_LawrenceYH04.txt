@@ -1,0 +1,28 @@
+PROJECT 1: ML-IDS
+Link: https://github.com/LawrenceYH04/ML-IDS
+Source: automated summary of the GitHub page (code not read line by line).
+
+WHAT IT DOES
+- ML intrusion detection on CSE-CIC-IDS2018, 16,232,943 flows, 15 classes, very imbalanced (about 155,000:1).
+- Compares five models: Random Forest (best), XGBoost, MLP, autoencoder (trained on benign only), Isolation Forest.
+- Features: 40 features chosen by Mutual Information, plus a 16-dimension autoencoder embedding.
+
+RESULTS REPORTED
+- Random Forest: macro-F1 0.836 (95% CI 0.815 to 0.852).
+- Binary attack-vs-benign false-positive rate: 0.63%.
+
+LIVE / REAL-TIME
+- Yes, a FastAPI + WebSocket dashboard scores CICFlowMeter flows in real time.
+
+HOW IT HANDLES THE ISSUES
+- Imbalance: capped SMOTE oversampling, balanced class weights.
+- Thresholds: per-class threshold calibration using train and validation data only.
+- Leakage: described as strictly leakage-safe splitting and preprocessing.
+- Distribution shift between training data and live traffic: NOT explained in the summary.
+
+LIMITATIONS
+- Large models and the raw dataset are not in the repository; the dataset has to be downloaded separately.
+
+RELEVANCE TO OUR PROBLEM
+- Calibrates thresholds on validation data, not on the test split or attack data. This is the same principle we need for the hybrid threshold.
+- It does not show how the live traffic was checked against that threshold.

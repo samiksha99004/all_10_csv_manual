@@ -1,0 +1,31 @@
+PROJECT 5: Hybrid Intrusion Detection System (rules + Isolation Forest + XGBoost)
+Link: https://github.com/gargeethakur/Hybrid-Intrusion-Detection-System
+Source: automated summary of the GitHub page (code not read line by line).
+
+WHAT IT DOES
+- Three signals combined:
+  1. Snort-style cybersecurity rules (hand-written signatures).
+  2. Isolation Forest anomaly score (unsupervised).
+  3. XGBoost or Random Forest fusion model that takes the rule flags, the anomaly score and the raw features.
+- Adds SHAP explanations to show how much each signal contributes per attack type.
+- Five steps: exploratory analysis, rules, anomaly detection, fusion model, explainability.
+
+DATASET (CHECK)
+- Described as CICIDS with CICFlowMeter features.
+- The listed classes (Analysis, Backdoor, Exploits, Fuzzers, Generic, Reconnaissance, Shellcode, Worms) are the attack categories of UNSW-NB15, not CICIDS2018. Confirm this by reading the repo's data files before relying on the dataset claim.
+
+RESULTS REPORTED
+- No accuracy, precision, recall or F1 numbers are given.
+
+LIVE / REAL-TIME
+- No. Batch processing of recorded flows only.
+
+HOW IT HANDLES THE ISSUES
+- Distribution shift: not specified.
+- Thresholds and hyperparameters: not specified.
+
+LIMITATIONS
+- Batch only, no live test, no reported results.
+
+RELEVANCE TO OUR PROBLEM
+- The useful idea is the rule layer. A simple rule such as "many connections to port 22 from one source in a short time" does not depend on flow shape, so it would still fire when our flows differ from training. It would need a test on the victim's live traffic before we rely on it.

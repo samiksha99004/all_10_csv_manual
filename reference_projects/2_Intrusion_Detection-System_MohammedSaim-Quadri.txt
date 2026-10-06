@@ -1,0 +1,28 @@
+PROJECT 2: Intrusion Detection System (XGBoost + CICIDS2018)
+Link: https://github.com/MohammedSaim-Quadri/Intrusion_Detection-System
+Source: automated summary of the GitHub page (code not read line by line).
+
+WHAT IT DOES
+- End-to-end MLOps pipeline on CICIDS2018: stratified sampling, XGBoost (CPU) and CNN+LSTM (GPU), SHAP explanations, Docker.
+- Builds a stratified, memory-safe sample with create_master_dataset.py; the full data is not stored in the repo.
+
+RESULTS REPORTED
+- XGBoost: accuracy 98.43%, F1 97.96%, balanced accuracy 78.11%.
+- CNN+LSTM: accuracy 96.31%, balanced accuracy 55.16% (it predicts Benign for almost everything).
+- XGBoost: 0% recall on the Infilteration class, despite high accuracy.
+
+LIVE / REAL-TIME
+- No. Connecting predictions to live capture with CICFlowMeter is listed as future work.
+
+HOW IT HANDLES THE ISSUES
+- Imbalance: stratified sampling. SMOTE/GAN not used yet (future work).
+- Distribution shift: not documented.
+- Thresholds and normalization: not detailed.
+
+LIMITATIONS
+- Accuracy hides per-class failure: Infilteration recall is 0%.
+- The CNN collapses to the majority class.
+
+RELEVANCE TO OUR PROBLEM
+- Same warning as ours: high accuracy can hide a class the model never detects. Our Infilteration result (mostly called Benign) is the same kind of failure.
+- Per-class recall should be reported next to accuracy in every result.

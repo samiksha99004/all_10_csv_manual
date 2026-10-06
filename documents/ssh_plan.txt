@@ -1,0 +1,228 @@
+SSH BRUTE-FORCE LIVE DETECTION - PLAN FOR ANOTHER AI TO EXECUTE
+===============================================================
+Date written: 2026-10-05. Project folder: F:\all_10_csv_manual
+Read this whole file before running anything. Follow the steps in order.
+Do NOT push to GitHub unless the user says so. Only update files.
+
+0. GOAL
+-------
+Detect an SSH brute-force attack LIVE on the victim machine.
+While the attack runs, the victim prints every ~2 seconds:
+  - the attacker IP
+  - NORMAL or ABNORMAL for the current window
+  - a guess table of which attack it might be (when ABNORMAL)
+  - cumulative counts
+All capture, conversion, feature selection and scoring happen ON THE VICTIM.
+Windows is not part of the live pipeline. The attacker only attacks.
+
+Status today: the monitor script and the model bundle are written and pushed
+(commit a070f6c). The monitor was tested only in CSV mode on a saved capture
+(result matched the earlier offline run: 711 of 797 flows flagged). The capture
+and the converter have NOT run live yet. Several setup items are still open (section 5).
+
+
+1. RULES (apply at every step)
+------------------------------
+R1. Never edit, scale, relabel or fill in attack values to improve a result.
+    Units come from the converter. The Java CICFlowMeter-v3 writes time in
+    MICROSECONDS, the same as training, so no unit conversion is applied to its output.
+R2. Never change sshd settings (MaxAuthTries, LoginGraceTime, PAM) or Patator thread count
+    to chase a result. Record the settings as they are.
+R3. If a command fails, copy the exact error text. Do not guess a fix. Ask the user.
+R4. Anything that changes a machine's network, firewall, or VM settings needs the user's
+    yes first. Say what will change and how to undo it.
+R5. Do not push to GitHub unless the user says so. Updating files is fine.
+R6. Report results as measured, including 0% or NORMAL-everywhere if that is what happens.
+R7. The attacker does only the attack. Do not ask it to convert, copy or store data.
+
+
+2. MACHINES AND NETWORK (as of 2026-10-05)
+-------------------------------------------
+VICTIM   = Kali VM "kali victim". Runs sshd, tcpdump, the Java converter, the monitor.
+           LAN IP (bridged NIC, Net/0): 10.151.232.71
+           The Windows project folder is mounted here as a TRANSIENT shared folder:
+           name F_DRIVE, mount point /media/sf_F_DRIVE.
+           The share goes away when the VM is powered off. Remount after a restart:
+             sudo mkdir -p /media/sf_F_DRIVE && sudo mount -t vboxsf F_DRIVE /media/sf_F_DRIVE
+ATTACKER = Kali VM "attacker kali". Runs Patator only.
+           Its LAN IP is currently NOT on 10.151.232.x. VirtualBox reports 10.0.3.15
+           (NAT adapter only). The victim cannot reach it. Fix this first (section 4, step S1).
+           Its shared folder (F_DRIVE, /media/sf_F_DRIVE) is permanent.
+WINDOWS  = this PC. Hosts the project and the model files. IP on 10.151.232.x: 10.151.232.44.
+           Not part of the live pipeline.
+
+Record the VirtualBox network mode of both VMs before changing anything:
+    VBoxManage showvminfo "attacker kali" --machinereadable | findstr /i "nic"
+    VBoxManage showvminfo "kali victim"  --machinereadable | findstr /i "nic"
+
+
+3. FILES (exact paths)
+----------------------
+Project (Windows):
+  live_detection/victim/live_monitor.py       the victim-side monitor (copy to victim)
+  live_detection/victim/models/meta.json      78 training feature names and class list
+  live_detection/victim/models/attack_classes.json   level-2 index -> attack name
+  live_detection/victim/models/level1_binary_xgb.json   level 1: attack / benign
+  live_detection/victim/models/level2_multiclass_xgb.json  level 2: which attack
+  CLAUDE.md                                   project rules and live-detection requirements
+  2_xgboost_model/                            source of the models (do not edit)
+
+Victim (Kali), after setup:
+  ~/ids/live_monitor.py
+  ~/ids/models/                               the four model files above
+  ~/ids/pcap/                                 rotating 2-second pcaps (seg_YYYYmmdd_HHMMSS.pcap)
+  ~/ids/csv/                                  one flow CSV per pcap (written by the converter)
+  ~/ids/CICFlowMeter-4.0/                     the Java converter (one-time copy, section 5)
+
+Converter (Java CICFlowMeter-v3), run as:
+  cd ~/ids/CICFlowMeter-4.0 && java -Djava.library.path=lib/native -cp "lib/*" cic.cs.unb.ca.ifm.Cmd <input.pcap> <output_dir>
+  Output file for seg_X.pcap is seg_X.pcap_Flow.csv in <output_dir>.
+  (Confirmed on the attacker: input kali_patator.pcap gave kali_patator.pcap_Flow.csv.)
+
+Files that are NOT used any more (kept as history only, do not use):
+  live_detection/1_capture_rotate.sh, 2_convert_loop.sh, 3_live_watch.py (shared-folder version)
+
+
+4. STEPS
+--------
+Each step has a check. Do not move to the next step until the check passes.
+
+S1. NETWORK - attacker must reach victim.
+    On the ATTACKER:   ip -br a
+    On the VICTIM:     ip -br a                   (expected: 10.151.232.71 on the bridged NIC)
+    On the ATTACKER:   ping -c 5 10.151.232.71
+    CHECK: ping replies, average time recorded.
+    If the attacker has no 10.151.232.x address, stop and ask the user to fix the VirtualBox
+    network adapter (R4). Do not change anything without a yes.
+
+S2. VICTIM - sshd running and a test account.
+    On the VICTIM:
+      sudo apt update && sudo apt install -y openssh-server
+      sudo systemctl enable --now ssh
+      sudo systemctl status ssh                  (must show "active (running)")
+    CHECK: active (running). Record the test account name <USER> and its password.
+    Do not change sshd settings.
+
+S3. VICTIM - Java and Python packages.
+    On the VICTIM:
+      java -version                               (must print a version; if missing: sudo apt install -y openjdk-17-jre-headless)
+      tcpdump --version                           (if missing: sudo apt install -y tcpdump)
+      python3 -c "import numpy, xgboost; print(numpy.__version__, xgboost.__version__)"
+        (if xgboost is missing: pip install --break-system-packages xgboost numpy
+         and report the output; if pip refuses, ask the user)
+    CHECK: all three print a version.
+
+S4. VICTIM - the Java converter (one-time copy from the attacker). NEEDS USER YES (R7).
+    The converter lives only on the attacker at /home/kali/CICFlowMeter/build/distributions/CICFlowMeter-4.0.
+    Ask the user how they want it copied. Options given to the user:
+      (a) on the attacker:  scp -r /home/kali/CICFlowMeter/build/distributions/CICFlowMeter-4.0 kali@10.151.232.71:~/ids/
+      (b) via a shared folder copy made by the user.
+    CHECK on the victim: ls ~/ids/CICFlowMeter-4.0/bin and ls ~/ids/CICFlowMeter-4.0/lib | head
+    Then run the converter once on a known pcap to confirm it works (see S7).
+
+S5. VICTIM - copy the monitor and models.
+    mkdir -p ~/ids/pcap ~/ids/csv
+    cp /media/sf_F_DRIVE/all_10_csv_manual/live_detection/victim/live_monitor.py ~/ids/
+    cp -r /media/sf_F_DRIVE/all_10_csv_manual/live_detection/victim/models ~/ids/
+    CHECK: ls -l ~/ids/models must list the four files (sizes: level1 18,521,929 bytes,
+    level2 15,013,192 bytes, meta.json 2,181 bytes, attack_classes.json 404 bytes).
+    If the share is not mounted, mount it (section 2).
+
+S6. VICTIM - capture, rotating every 2 seconds (terminal 1). Keep it running.
+    sudo tcpdump -i <IFACE> -G 2 -w ~/ids/pcap/seg_%Y%m%d_%H%M%S.pcap port 22
+    <IFACE> = the victim's LAN interface (from S1, the one with 10.151.232.71).
+    CHECK: new seg_*.pcap files appear in ~/ids/pcap about every 2 seconds
+           (ls -lt ~/ids/pcap | head -5).
+    Filter is "port 22" only, so the monitor sees every SSH client; the monitor reports
+    the attacker as the source IP with the most port-22 flows.
+
+S7. VICTIM - converter test on one finished pcap (before the live run).
+    Pick a finished segment (not the newest):
+      cd ~/ids/pcap && ls -t seg_*.pcap | sed -n '2p'
+    Convert it:
+      cd ~/ids/CICFlowMeter-4.0 && java -Djava.library.path=lib/native -cp "lib/*" cic.cs.unb.ca.ifm.Cmd ~/ids/pcap/<segment>.pcap ~/ids/csv
+    CHECK: ~/ids/csv/<segment>.pcap_Flow.csv exists; head -1 shows the Java header;
+           the time to convert is recorded (it must be well under 2 seconds, or the
+           monitor will fall behind; report it if it is not).
+    If a segment has no SSH traffic, the CSV may be empty or missing; that is fine.
+
+S8. VICTIM - monitor (terminal 2). Keep it running.
+    python3 ~/ids/live_monitor.py --refresh 2
+    CHECK: the screen redraws every 2 seconds, showing "attacker IP: none seen yet"
+           and "CURRENT WINDOW: WAITING" before any attack.
+    Stop with Ctrl+C.
+
+S9. ATTACKER - Patator attack. Only after S1 to S8 pass. NEEDS USER GO (R7 is about the attacker's role).
+    Check the options first:  patator ssh_login --help
+    Run (same form as the runbook, wordlist file made earlier):
+      patator ssh_login host=10.151.232.71 user=<USER> password=FILE0 0=$HOME/wordlist.txt -x ignore:mesg='Authentication failed.'
+    Let it run for 2 to 3 minutes. Record the start and end times.
+
+S10. OBSERVE. The monitor should show, while Patator runs:
+    - attacker IP = 10.151.232.<attacker's address>
+    - windows flagged ABNORMAL with a guess table
+    - cumulative counts growing
+    Record what is shown, as measured. Take a screen copy of the output if the user asks.
+
+S11. STOP in this order:
+    1. Patator (Ctrl+C on the attacker)
+    2. tcpdump on the victim (Ctrl+C)
+    3. the monitor on the victim (Ctrl+C)
+    Remove nothing. The pcaps and CSVs in ~/ids stay for review.
+
+
+5. OPEN ITEMS (each needs a decision or a fact from the user)
+-------------------------------------------------------------
+O1. Attacker network (S1). The attacker is on NAT only.
+O2. Converter copy to the victim (S4). Needs the user's choice of method (R7).
+O3. Victim packages (S3). Java, tcpdump, xgboost may be missing.
+O4. The window length is 2 seconds. Each window has few flows, so per-window
+    percentages are noisy. Report this with every result.
+O5. The verdict rule: ABNORMAL if at least one flow in the window is flagged by level 1.
+    The user can ask for a different rule.
+O6. Flows that cross a 2-second boundary are split, and a long flow can be cut into
+    pieces. Report this as a limit.
+O7. The old Windows watcher and shared-folder scripts are kept only as history.
+
+
+6. WHAT THE MONITOR DOES (for the other AI, to check the code if needed)
+-----------------------------------------------------------------------
+- Every 2 seconds it lists ~/ids/pcap/seg_*.pcap, skips the NEWEST file (tcpdump may still
+  be writing it), and converts each new file with the Java converter.
+- It reads the converter's CSV, maps the Java column names to the 78 training features
+  (table JAVA in live_monitor.py), and keeps only rows where all 78 are finite.
+- Level 1 (level1_binary_xgb.json) says attack or benign. Level 2 (level2_multiclass_xgb.json)
+  names the attack for the flows level 1 flagged. Level-2 indexes map to classes through
+  attack_classes.json and meta.json.
+- Verdict per window: ABNORMAL if any flow is flagged, otherwise NORMAL.
+- Attacker IP = the source IP that sends the most flows to destination port 22 across all windows.
+- It redraws the screen (ANSI clear) every --refresh seconds.
+- Test result on the saved SSH capture (ssh_attack_java.csv, CSV mode): 797 flows,
+  711 flagged, labels Infilteration 354, SSH-Bruteforce 230, Slowloris 127. Matches the
+  earlier offline run.
+
+
+7. RESULTS SO FAR (for context, all measured)
+--------------------------------------------
+- Offline test split: 2-level model 96.3%, single 15-class model 95.7%.
+- Live SSH capture (Java converter, Ubuntu victim, attempt 3): 2-level model flagged 89.8%,
+  named SSH-Bruteforce 29.0%. Single model named SSH 7.3%. Hybrid named SSH 7.3%.
+- Kali-to-Kali Patator captures (Python converter, not the Java one): models mostly gave
+  Benign. The Python converter's flag and window values differ from training.
+- The main known gap: the per-packet gap in live Patator traffic (about 0.4 s) is about 50
+  times the training gap (about 8.7 ms). The cause has not been confirmed. The sshd
+  PAM check time was measured (0.02 s) and is not the cause.
+
+
+8. RECORD (fill in while running)
+---------------------------------
+Date and time of run:                        ____
+Attacker LAN IP:                             ____
+Victim LAN IP:                               ____
+Victim interface used by tcpdump:            ____
+Java version on victim:                      ____
+xgboost version on victim:                   ____
+Converter time per 2-second segment (s):     ____
+Segments converted / flows scored:           ____ / ____
+Monitor output (copy the last screen):       ____
+Patator start / end time:                    ____ / ____

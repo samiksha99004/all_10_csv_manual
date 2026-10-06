@@ -1,0 +1,31 @@
+PROJECT 4: Network Intrusion Detection System (XGBoost, CSE-CIC-IDS2018)
+Link: https://github.com/tushargupta1111/Network-Intrusion-Detection-System
+Source: automated summary of the GitHub page (code not read line by line).
+
+WHAT IT DOES
+- Binary XGBoost classifier (benign vs malicious) on the 14 February 2018 file (1,048,575 rows, 80 features).
+- Trains and compares three ways: defaults, GridSearchCV (243 combinations, 3-fold), and RandomizedSearchCV (10 iterations).
+
+PREPROCESSING
+- Removes 43 of the 80 features: columns with infinite values, zero-variance columns, duplicates, the timestamp, and features with Pearson correlation above 0.90.
+- Note: our project keeps all 79 columns, as you asked, so this step is not used here.
+- Uses a 70/30 stratified split.
+
+RESULTS REPORTED
+- No accuracy, precision, recall or F1 numbers are given in the documentation.
+
+LIVE / REAL-TIME
+- No. Batch processing of recorded data only.
+
+HOW IT HANDLES THE ISSUES
+- Imbalance: class weights (scale_pos_weight). No SMOTE.
+- Thresholds: default 0.5 probability, no tuning.
+- Normalization: none mentioned.
+- Distribution shift: not handled.
+
+LIMITATIONS
+- Batch only, single dataset, no explainability.
+- Features are dropped, which can hide attacks that depend on them.
+
+RELEVANCE TO OUR PROBLEM
+- Low. It shows a hyperparameter search, but it never tests on live traffic, so it does not address our live failure.

@@ -1,0 +1,30 @@
+PROJECT 3: IDS Network Analyzer (XGBoost + CSE-CIC-IDS2018)
+Link: https://github.com/0reAde/IDS-Network-Analyzer
+Source: automated summary of the GitHub page (code not read line by line).
+
+WHAT IT DOES
+- Educational study of CSE-CIC-IDS2018: 6.3 million flows (5.87 million after cleaning), six days, 13 attack classes plus benign.
+- Random Forest (100 trees, balanced class weights) is the main model; XGBoost is for comparison.
+- Its main point: high benchmark scores can hide poor generalization to unseen attacks and to real traffic.
+
+RESULTS REPORTED
+- Random split, macro-F1: 0.838.
+- Temporal split (chronological), macro-F1: 0.884.
+- Generalization test (DoS attack from another capture day): recall about 0%, with all 52,498 flows missed.
+- Benign recall: 1.00 in every test.
+
+LIVE / REAL-TIME
+- No live capture. The author says deployment needs: the same CICFlowMeter version and configuration as the 2018 data, exact feature column matching, and handling of new benign traffic (TLS 1.3, QUIC, video, cloud sync).
+
+HOW IT HANDLES THE ISSUES
+- Distribution shift: demonstrated, not solved. The model trained on one attack type failed on another capture day.
+- Thresholds and normalization: not detailed; default scikit-learn behaviour with balanced weights.
+- False alarms: it projects 10 to 965 alerts per day at 100 to 10,000 flows per second.
+
+LIMITATIONS
+- Very few examples for some classes (SQL injection: 34 samples).
+- Short attack bursts make chronological splits less useful.
+
+RELEVANCE TO OUR PROBLEM
+- Confirms our failure type: a model that is excellent offline can miss a new attack from a different day or environment.
+- Says the converter version must match the training data, which is why we use the Java CICFlowMeter-v3.

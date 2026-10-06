@@ -1,0 +1,16 @@
+scoring 465,837 test rows ...
+
+Hybrid (retrain, cleaned_dataset_2) - test split (465,837 rows)
+======================================================================
+Overall accuracy: 0.9224   stage-1 flagged: 56.9%   classes >= 95% recall: 4/7
+
+class                      test rows  precision   recall      F1
+Benign                       199,922      85.4%    98.7%   0.916
+DDoS                         155,191     100.0%    90.7%   0.951   < 95%
+DoS                           39,311     100.0%    95.5%   0.977
+Bot                           28,907     100.0%    99.2%   0.996
+Infilteration                 23,520      72.6%    27.5%   0.399   < 95%
+Brute Force                   18,971      99.6%    99.6%   0.996
+SQL Injection                     15     100.0%    60.0%   0.750   < 95%
+
+done (14s)

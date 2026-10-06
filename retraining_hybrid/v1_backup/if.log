@@ -1,0 +1,20 @@
+using 63 of 63 features
+fitting Isolation Forest on 799,688 Benign rows (200 trees, 4096 rows/tree) ...
+scoring all 1,863,347 training rows ...
+
+Isolation Forest (retrain, cleaned_dataset_2) - training split (1,863,347 rows)
+============================================================
+Trees 200, rows/tree 4096, contamination 0.02, features 63
+Threshold 0.47075 (max balanced accuracy). ROC-AUC 0.874
+Normal accuracy: 85.1%   Attack recall: 82.5%   Balanced accuracy: 83.8%
+Classes at >= 95%: 2/7
+
+Benign                       799,688    85.1%   < 95%
+DDoS                         620,764    90.3%   < 95%
+DoS                          157,245    59.1%   < 95%
+Bot                          115,628    99.1%
+Infilteration                 94,078    36.0%   < 95%
+Brute Force                   75,882    99.7%
+SQL Injection                     62    58.1%   < 95%
+
+Saved model, scaler and threshold (66s)
