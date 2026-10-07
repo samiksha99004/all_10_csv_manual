@@ -26,5 +26,7 @@ Thumbs.db
 2_xgboost_model/data/
 
 # Hybrid retrain train/test arrays (X_train.npy is 448 MB, X_test.npy is 112 MB - over GitHub's 100 MB limit)
-retraining_hybrid/data/
-!retraining_hybrid/data/meta.json
+# retraining_hybrid/ itself was deleted by the user; its replacement is new_isolationforest_xgboost_hybrid/
+new_isolationforest_xgboost_hybrid/data/
+!new_isolationforest_xgboost_hybrid/data/meta.json
+!new_isolationforest_xgboost_hybrid/data/meta_stacked.json

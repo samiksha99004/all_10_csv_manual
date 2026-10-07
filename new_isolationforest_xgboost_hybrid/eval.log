@@ -1,0 +1,23 @@
+
+Stacked Isolation Forest + XGBoost (retraining_hybrid_2) - test split (465,837 rows)
+======================================================================
+Overall accuracy: 0.9585   classes >= 95% recall: 10/15
+
+class                      test rows  precision   recall      F1
+Benign                       199,922      94.2%    96.3%   0.952
+DDoS attacks-LOIC-HTTP       115,073     100.0%   100.0%   1.000
+DDOS attack-HOIC              39,772     100.0%   100.0%   1.000
+DoS attacks-Hulk              29,040     100.0%   100.0%   1.000
+Bot                           28,907     100.0%   100.0%   1.000
+Infilteration                 23,520      61.6%    49.5%   0.549   < 95%
+SSH-Bruteforce                18,808     100.0%   100.0%   1.000
+DoS attacks-GoldenEye          8,281     100.0%   100.0%   1.000
+DoS attacks-Slowloris          1,982      99.9%    99.9%   0.999
+DDOS attack-LOIC-UDP             346      86.9%    95.7%   0.911
+Brute Force -Web                 109      50.0%    93.6%   0.652   < 95%
+Brute Force -XSS                  45      95.7%   100.0%   0.978
+SQL Injection                     15      80.0%    53.3%   0.640   < 95%
+DoS attacks-SlowHTTPTest           9      11.1%    11.1%   0.111   < 95%
+FTP-BruteForce                     8       0.0%     0.0%   0.000   < 95%
+
+done (22s)

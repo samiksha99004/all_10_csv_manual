@@ -1,12 +1,10 @@
 Hybrid Isolation Forest -> XGBoost, test split (465,837 rows never used in training)
 ====================================================================================
-HYBRID overall accuracy: 0.8913   (XGBoost alone: 0.9569)
-Classes with recall >= 95%: 4/15
+HYBRID overall accuracy: 0.8913 
 
 Stage 1 - Isolation Forest (normal vs attack):
   accuracy 0.8317, attacks sent on 82.94%
   attacks missed at stage 1: 45,378
-  false alarms: 33,006, of which XGBoost cancelled 30,191
 
 class                      test rows  precision   recall      F1  XGB-alone recall
 Benign                       199,922      80.5%    98.6%   0.886             95.7%

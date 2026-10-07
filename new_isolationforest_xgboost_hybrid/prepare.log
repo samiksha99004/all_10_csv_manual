@@ -1,0 +1,24 @@
+features: 63 (no merging - labels kept as in the cleaned dataset)
+  read 2,000,000 rows (12s)
+  read 4,000,000 rows (24s)
+  read 6,000,000 rows (37s)
+  read 8,000,000 rows (49s)
+  read 10,000,000 rows (62s)
+  read 12,000,000 rows (74s)
+Benign                      999610
+DDoS attacks-LOIC-HTTP      575364
+DDOS attack-HOIC            198861
+DoS attacks-Hulk            145199
+Bot                         144535
+Infilteration               117598
+SSH-Bruteforce               94041
+DoS attacks-GoldenEye        41406
+DoS attacks-Slowloris         9908
+DDOS attack-LOIC-UDP          1730
+Brute Force -Web               547
+Brute Force -XSS               226
+SQL Injection                   77
+DoS attacks-SlowHTTPTest        43
+FTP-BruteForce                  39
+
+15 classes | Train 1,863,347 | Test 465,837 | 80s

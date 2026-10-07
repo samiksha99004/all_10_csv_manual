@@ -18,12 +18,22 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 - The user confirmed these removals: all exact duplicates (even though that leaves FTP-BruteForce and SlowHTTPTest with only a few dozen rows), all rows whose features appear with more than one label, and the 15 corrupt rows. Ask before removing anything else.
 
 ## Folder layout
+Reorganized 2026-10-07 (by the user): docs and PDFs moved into `documents/`; `README.md` stays
+at the root as the GitHub front page. New folders: `reference_projects/` (summaries of 5 similar
+GitHub IDS projects, researched for ideas), `random_forest/` (a Random Forest trained outside this
+project on the cleaned dataset, see its own `CLAUDE.md`), `samiksha_capture/` (live packet-capture
+programs for Windows and Kali, write `.csv` files in the cleaned-dataset column layout, `Label` left
+empty), `new_isolationforest_xgboost_hybrid/` (see "Models" below). `original_csv/` also holds
+`cleaned_dataset_2.csv`, the same cleaned data with 15 unnecessary columns removed (8 all-zero, 7
+exact duplicates of another column - see that model's section for the list).
 ```
 all_10_csv_manual/
-├── CLAUDE.md, README.md, .gitignore        must stay at the root (README = GitHub front page)
-├── model_comparison_report.pdf             the three models compared side by side
-├── conference_paper.pdf                    write-up (added by the user)
-├── ssh_plan.txt                            plan to live-test 2_xgboost_model against a real SSH brute force
+├── README.md, .gitignore                   must stay at the root (README = GitHub front page)
+├── documents/                               CLAUDE.md, ssh_plan.txt, PDFs (moved out of the root)
+├── reference_projects/                      notes on 5 similar GitHub IDS projects
+├── random_forest/                           Random Forest trained on the cleaned dataset (own CLAUDE.md)
+├── samiksha_capture/                        live packet capture -> CSV (Windows + Kali), csv/ holds test captures
+├── new_isolationforest_xgboost_hybrid/      stacked Isolation Forest + XGBoost (see "Models" below)
 ├── cleaning_dataset/
 │   ├── common.py                           paths (data folders one level up), chunked Parquet I/O, log_step, WMI workaround
 │   ├── 1_load_merge.py … 10_validate_final_dataset.py
@@ -218,6 +228,69 @@ Final class counts:
   - Stage 1: `isolation_forest.joblib`, `model_config.json`, `train_report.txt`, `test_report.txt`, `test_metrics.json`, `per_attack_recall.png`, `score_distribution.png`.
   - Stage 2: `xgboost_stage2.json`, `train_xgboost_report.txt`.
   - Hybrid: `hybrid_report.txt`, `hybrid_metrics.json`, `hybrid_confusion_matrix.csv/.png`.
+
+### `new_isolationforest_xgboost_hybrid/`: stacked Isolation Forest + XGBoost (95.85% offline, 2026-10-07)
+- **Different design from `isolation_forest_and_xgboost_model/`.** That one GATES: Isolation Forest's
+  score is compared to a threshold, and only flagged flows reach XGBoost (raw features only, no score).
+  This one STACKS: the Isolation Forest's anomaly score is computed for every row and added as a 64th
+  input column. XGBoost alone makes the final call for every flow, across all 15 classes - there is no
+  separate stage-1 verdict or table any more, only one model's decision. This folder replaces an earlier
+  attempt, `retraining_hybrid/`, that the user deleted; and `retraining_hybrid_2/`, which the user moved
+  here and renamed (that one also merged SSH/FTP/web brute-force into one "Brute Force" class, DoS and
+  DDoS sub-types into one each - that merge is NOT used here; all 15 original classes are kept separate).
+- **Data:** `original_csv/cleaned_dataset_2.csv` (63 features + Label; same row count as the full cleaned
+  dataset, 15 columns removed). Sample: every attack row + 1,000,000 random Benign rows. 80/20 split,
+  stratified, seed 42 (same recipe as every other model here).
+- **15 columns dropped from the 78 (kept in the main dataset; only removed in this derived copy):**
+  all-zero (8): Bwd PSH Flags, Bwd URG Flags, Fwd Byts/b Avg, Fwd Pkts/b Avg, Fwd Blk Rate Avg,
+  Bwd Byts/b Avg, Bwd Pkts/b Avg, Bwd Blk Rate Avg. Exact duplicates of another column (7, confirmed on
+  200,000 test rows): Subflow Fwd Pkts (= Tot Fwd Pkts), Subflow Fwd Byts (= TotLen Fwd Pkts),
+  Subflow Bwd Pkts (= Tot Bwd Pkts), Subflow Bwd Byts (= TotLen Bwd Pkts), Fwd Seg Size Avg
+  (= Fwd Pkt Len Mean), Bwd Seg Size Avg (= Bwd Pkt Len Mean), Pkt Len Var (= Pkt Len Std squared).
+- **Scripts** (run from the folder, in order): `1_prepare_data.py`, `2_train_isolation_forest.py`
+  (fits on Benign training rows only; scores every row; saves `data/train_scores.npy` /
+  `test_scores.npy`; a threshold/ROC-AUC is still reported in `train_report.txt` but is informational
+  only, not used to gate anything), `3_build_stacked_features.py` (appends the score as column 64,
+  named `IF_Anomaly_Score` in `data/meta_stacked.json`), `4_train_xgboost.py`, `5_evaluate.py`.
+- **Settings:** Isolation Forest 300 trees, max_samples 8192, contamination 0.02 (raised from an
+  earlier 200/4096 after measuring a real improvement: ROC-AUC 0.874 -> 0.896, balanced accuracy
+  83.8% -> 86.3%, mostly from DoS recall 59% -> 92%). XGBoost 200 trees, depth 10, lr 0.1,
+  square-root balanced sample weights, `multi:softprob`, 15 classes.
+- **Isolation Forest alone (informational, training split):** ROC-AUC 0.895.
+- **Final test (465,837 held-out rows, never used in training): overall accuracy 95.85%, 10/15
+  classes at >= 95% recall.** All DDoS/DoS/Bot/SSH-Bruteforce classes and Brute Force-XSS at 95-100%
+  recall. Below 95%: Infilteration 49.5% (23,520 rows; same class that is weak in every model here -
+  its flows are built to look like normal traffic), Brute Force-Web 93.6% (109 rows), SQL Injection
+  53.3% (15 rows), SlowHTTPTest 11.1% (9 rows), FTP-BruteForce 0% (8 rows) - the last four have too few
+  test rows to be reliable, same issue as `1_xgboost_model/`. Full numbers: `metrics.json`,
+  `confusion_matrix.csv`.
+- **Live test (2026-10-07), `samiksha_capture/csv/kali_patator_1s.csv`** (Java CICFlowMeter-v3, 182
+  confirmed attack flows, Kali-to-Kali Patator with persistent connections): 171/182 = 93.96% correctly
+  named SSH-Bruteforce. Matches the 15-class/hybrid result on this same file from before this retrain.
+- **Live test, `F:\anivrath1.csv`** (Windows/Kali capture program, `samiksha_capture/anivrath_capture.py`
+  / `anivrath_capture.py` on Kali, 1,776 flows, a real SSH brute force with password `Zebra123`, ground
+  truth confirmed by the user): the Isolation Forest score was above its informational threshold for
+  EVERY flow (min 0.5686 vs threshold 0.4542 - looks fully anomalous), but XGBoost still named 100% of
+  the flows Benign. Confirms the anomaly score alone does not fix the known flow-shape mismatch: this
+  capture's flows (median ~4 packets each way, ~5ms) are far from the SSH-Bruteforce pattern XGBoost
+  learned (~22 packets, ~375ms), and adding the score as an input did not close that gap for XGBoost's
+  decision.
+- **Conclusion so far:** stacking the anomaly score in gives about the same offline accuracy as plain
+  XGBoost alone (`1_xgboost_model/`: 95.70%) and keeps SSH-Bruteforce fully separate at 100% recall
+  (merging it hurt: the gated retrain's merged "Brute Force" class only got 8.79% right on
+  `kali_patator_1s.csv`, against 93.96% here). It has not been shown to fix the Infilteration problem
+  or the live flow-shape mismatch that still causes misses on short, few-packet captures.
+
+### `samiksha_capture/`: live packet capture programs (not a trained model)
+- **Purpose:** capture real network traffic and write a CSV in the exact cleaned-dataset column layout,
+  without deciding normal vs attack - `Label` is always left empty.
+- **`capture.py` (Windows)** and **`capture_kali.py` / `anivrath_capture.py` (Kali)**: group packets into
+  flows (5-tuple), compute each of the 78 training features directly from the packets, write one row per
+  finished flow (idle 30s or 120s max), flush on Ctrl+C. `anivrath_capture.py` additionally computes
+  Active/Idle (gap-based, `ACTIVITY_TIMEOUT_US`, a guess not yet checked against the converter's source)
+  and `Fwd Seg Size Min` (smallest forward TCP header length, also unverified against the source).
+- **`csv/`**: saved test captures used for comparing models (`kali_patator_1s.csv`, `ssh_attack_java.csv`,
+  `kali_to_kali_attack.csv`, `live_kali_to_kali.csv`, `anivrath.csv`).
 
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.

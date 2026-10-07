@@ -1,0 +1,22 @@
+Isolation Forest (retraining_hybrid_2) - training split (1,863,347 rows)
+============================================================
+Trees 300, rows/tree 8192, contamination 0.02, features 63
+ROC-AUC 0.895 (how separable normal/attack is on the score alone)
+Informational threshold 0.45417 (max balanced accuracy) - NOT used to gate XGBoost's input
+At that threshold: normal accuracy 81.5%  attack recall 88.3%
+
+Benign                       799,688    81.5%
+DDoS attacks-LOIC-HTTP       460,291    93.6%
+DDOS attack-HOIC             159,089    82.3%
+DoS attacks-Hulk             116,159    98.9%
+Bot                          115,628    99.1%
+Infilteration                 94,078    39.6%
+SSH-Bruteforce                75,233   100.0%
+DoS attacks-GoldenEye         33,125    77.6%
+DoS attacks-Slowloris          7,926   100.0%
+DDOS attack-LOIC-UDP           1,384   100.0%
+Brute Force -Web                 438    73.1%
+Brute Force -XSS                 181    77.9%
+SQL Injection                     62    82.3%
+DoS attacks-SlowHTTPTest          34   100.0%
+FTP-BruteForce                    31   100.0%
