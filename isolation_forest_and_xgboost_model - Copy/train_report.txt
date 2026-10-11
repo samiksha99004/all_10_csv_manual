@@ -1,0 +1,23 @@
+Isolation Forest - training split (1,863,347 rows)
+============================================================
+Trees 300, rows/tree 4096, contamination 0.02, features 70
+Standardised features. Threshold 0.46441 (max balanced accuracy). ROC-AUC 0.865
+Normal accuracy: 83.5%   Attack recall: 82.9%   Balanced accuracy: 83.2%
+Classes at >= 95%: 6/15
+
+class                           rows     rate   (attacks: caught; Benign: not flagged)
+Benign                       799,688    83.5%   < 95%
+DDoS attacks-LOIC-HTTP       460,291    93.5%   < 95%
+DDOS attack-HOIC             159,089    82.3%   < 95%
+DoS attacks-Hulk             116,159    55.3%   < 95%
+Bot                          115,628    99.1%
+Infilteration                 94,078    37.6%   < 95%
+SSH-Bruteforce                75,233   100.0%
+DoS attacks-GoldenEye         33,125    64.1%   < 95%
+DoS attacks-Slowloris          7,926   100.0%
+DDOS attack-LOIC-UDP           1,384   100.0%
+Brute Force -Web                 438    59.6%   < 95%
+Brute Force -XSS                 181    54.7%   < 95%
+SQL Injection                     62    59.7%   < 95%
+DoS attacks-SlowHTTPTest          34   100.0%
+FTP-BruteForce                    31   100.0%

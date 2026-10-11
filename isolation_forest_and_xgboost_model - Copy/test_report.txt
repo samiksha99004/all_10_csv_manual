@@ -1,0 +1,30 @@
+Isolation Forest - test split (465,837 rows, never used for training or the threshold)
+==============================================================================
+Normal accuracy: 83.5%    Attack recall: 82.9%    Balanced accuracy: 83.2%
+Overall accuracy: 83.2%    ROC-AUC: 0.865    classes at >= 95%: 6/15
+Speed: 20,221 flows/s
+
+class                      test rows     rate   (attacks: caught; Benign: not flagged)
+Benign                       199,922    83.5%   < 95%
+DDoS attacks-LOIC-HTTP       115,073    93.3%   < 95%
+DDOS attack-HOIC              39,772    82.5%   < 95%
+DoS attacks-Hulk              29,040    55.8%   < 95%
+Bot                           28,907    99.1%
+Infilteration                 23,520    37.9%   < 95%
+SSH-Bruteforce                18,808   100.0%
+DoS attacks-GoldenEye          8,281    64.2%   < 95%
+DoS attacks-Slowloris          1,982   100.0%
+DDOS attack-LOIC-UDP             346   100.0%
+Brute Force -Web                 109    65.1%   < 95%
+Brute Force -XSS                  45    48.9%   < 95%
+SQL Injection                     15    53.3%   < 95%
+DoS attacks-SlowHTTPTest           9   100.0%
+FTP-BruteForce                     8   100.0%
+
+Trade-off - normal accuracy vs attack recall at each false-alarm ceiling:
+
+false-alarm ceiling     normal acc  attack recall
+1%                           99.0%           1.1%
+2%                           98.1%           1.3%
+5%                           95.0%          26.1%
+10%                          90.0%          57.0%

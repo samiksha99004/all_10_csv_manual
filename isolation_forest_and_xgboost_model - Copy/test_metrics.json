@@ -1,0 +1,106 @@
+{
+  "threshold": 0.4644102454185486,
+  "test_rows": 465837,
+  "normal_accuracy": 0.8349056131891438,
+  "attack_recall": 0.8293514844969258,
+  "balanced_accuracy": 0.8321285488430348,
+  "roc_auc": 0.8647609509588663,
+  "overall_accuracy": 0.8317351348218368,
+  "classes_meeting_95": 6,
+  "per_class": {
+    "Benign": {
+      "rows": 199922,
+      "rate": 0.834906,
+      "meets_95": false
+    },
+    "DDoS attacks-LOIC-HTTP": {
+      "rows": 115073,
+      "rate": 0.933295,
+      "meets_95": false
+    },
+    "DoS attacks-Hulk": {
+      "rows": 29040,
+      "rate": 0.557989,
+      "meets_95": false
+    },
+    "Infilteration": {
+      "rows": 23520,
+      "rate": 0.378912,
+      "meets_95": false
+    },
+    "DDOS attack-HOIC": {
+      "rows": 39772,
+      "rate": 0.824625,
+      "meets_95": false
+    },
+    "Bot": {
+      "rows": 28907,
+      "rate": 0.991352,
+      "meets_95": true
+    },
+    "SSH-Bruteforce": {
+      "rows": 18808,
+      "rate": 1.0,
+      "meets_95": true
+    },
+    "Brute Force -XSS": {
+      "rows": 45,
+      "rate": 0.488889,
+      "meets_95": false
+    },
+    "DDOS attack-LOIC-UDP": {
+      "rows": 346,
+      "rate": 1.0,
+      "meets_95": true
+    },
+    "DoS attacks-GoldenEye": {
+      "rows": 8281,
+      "rate": 0.641951,
+      "meets_95": false
+    },
+    "DoS attacks-Slowloris": {
+      "rows": 1982,
+      "rate": 1.0,
+      "meets_95": true
+    },
+    "Brute Force -Web": {
+      "rows": 109,
+      "rate": 0.651376,
+      "meets_95": false
+    },
+    "SQL Injection": {
+      "rows": 15,
+      "rate": 0.533333,
+      "meets_95": false
+    },
+    "DoS attacks-SlowHTTPTest": {
+      "rows": 9,
+      "rate": 1.0,
+      "meets_95": true
+    },
+    "FTP-BruteForce": {
+      "rows": 8,
+      "rate": 1.0,
+      "meets_95": true
+    }
+  },
+  "tradeoff_by_false_alarm_ceiling": {
+    "1%": {
+      "normal_accuracy": 0.9903,
+      "attack_recall": 0.0113
+    },
+    "2%": {
+      "normal_accuracy": 0.9806,
+      "attack_recall": 0.0133
+    },
+    "5%": {
+      "normal_accuracy": 0.9505,
+      "attack_recall": 0.2609
+    },
+    "10%": {
+      "normal_accuracy": 0.9004,
+      "attack_recall": 0.57
+    }
+  },
+  "flows_per_second": 20221
+}
