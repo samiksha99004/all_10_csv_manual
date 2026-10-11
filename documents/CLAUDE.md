@@ -20,25 +20,27 @@ This folder merges the 10 daily CICIDS2018 CSV files (CICFlowMeter network-flow 
 ## Folder layout
 Reorganized 2026-10-07 (by the user): docs and PDFs moved into `documents/`; `README.md` stays
 at the root as the GitHub front page. New folders: `reference_projects/` (summaries of 5 similar
-GitHub IDS projects, researched for ideas), `random_forest/` (a Random Forest trained outside this
-project on the cleaned dataset, see its own `CLAUDE.md`), `samiksha_capture/` (live packet-capture
-programs for Windows and Kali, write `.csv` files in the cleaned-dataset column layout, `Label` left
-empty), `new_isolationforest_xgboost_hybrid/` (see "Models" below). `original_csv/` also holds
-`cleaned_dataset_2.csv`, the same cleaned data with 15 unnecessary columns removed (8 all-zero, 7
-exact duplicates of another column - see that model's section for the list).
+GitHub IDS projects, researched for ideas), `new_isolationforest_xgboost_hybrid/` (see "Models"
+below).
+
+Reorganized again 2026-10-07 to 2026-10-11 (by the user, further changes): `original_csv/` was
+renamed to `csv_related/` (still holds the 10 raw day files, `cicids2018_full_cleaned.csv` and
+`cleaned_dataset_2.csv`). `cleaning_dataset/` and `samiksha_capture/` are no longer present in the
+project folder as of 2026-10-11 - their scripts (the 1-10 cleaning pipeline, the Windows/Kali
+capture programs) are not available in this working tree any more; this file no longer assumes
+they can be run from here. `random_forest/` is also no longer present at `F:\random_forest`
+(outside this project folder, where it was originally built) as of the same check. The pipeline's
+own results (the row counts, class counts and `cicids2018_full_cleaned.csv` itself) are unaffected
+- they already exist in `csv_related/` and are historical fact, not dependent on the scripts still
+being present. New folder: `live_ids_app/` (see "Models" below - a live/real-time application of
+`new_isolationforest_xgboost_hybrid`, not a model itself).
 ```
 all_10_csv_manual/
 ├── README.md, .gitignore                   must stay at the root (README = GitHub front page)
 ├── documents/                               CLAUDE.md, ssh_plan.txt, PDFs (moved out of the root)
 ├── reference_projects/                      notes on 5 similar GitHub IDS projects
-├── random_forest/                           Random Forest trained on the cleaned dataset (own CLAUDE.md)
-├── samiksha_capture/                        live packet capture -> CSV (Windows + Kali), csv/ holds test captures
 ├── new_isolationforest_xgboost_hybrid/      stacked Isolation Forest + XGBoost (see "Models" below)
-├── cleaning_dataset/
-│   ├── common.py                           paths (data folders one level up), chunked Parquet I/O, log_step, WMI workaround
-│   ├── 1_load_merge.py … 10_validate_final_dataset.py
-│   ├── cleaning_log.json, 7_final_dtypes.json, 9_final_summary.json, 10_validation_report.txt   records of the run
-│   └── cleaning_dataset_report.pdf         formatted report of the cleaning pipeline (source, steps, columns, classes)
+├── live_ids_app/                            live Windows app using that model, 5-second cycle (see "Models" below)
 ├── 1_xgboost_model/                       XGBoost 15-class model: Benign + 14 attack types (see "Models" below)
 │   ├── train_all_attacks.py, tune_class_weights.py, evaluate_final.py
 │   ├── all_attacks_xgb.json + label/feature/weight JSONs, metrics, confusion matrices, plots, logs
@@ -54,8 +56,7 @@ all_10_csv_manual/
 │   └── data/                               train/test arrays from step 1 (~650 MB, git-ignored)
 ├── notebooks/
 │   └── cicids2018-using-decision-trees.ipynb   reference notebook (Kaggle, uses 1 file); not part of the pipeline
-├── original_csv/                           10 raw day files + cicids2018_full_cleaned.csv (git-ignored)
-└── intermediate/                           created only while the pipeline runs: per-step Parquet files (git-ignored)
+└── csv_related/                             10 raw day files + cicids2018_full_cleaned.csv + cleaned_dataset_2.csv (git-ignored)
 ```
 The per-step Parquet files (~14 GB) and the unused `attack_csvs/` folder were deleted on request. Steps 1–9 recreate the Parquet files.
 
@@ -281,16 +282,62 @@ Final class counts:
   `kali_patator_1s.csv`, against 93.96% here). It has not been shown to fix the Infilteration problem
   or the live flow-shape mismatch that still causes misses on short, few-packet captures.
 
-### `samiksha_capture/`: live packet capture programs (not a trained model)
-- **Purpose:** capture real network traffic and write a CSV in the exact cleaned-dataset column layout,
-  without deciding normal vs attack - `Label` is always left empty.
-- **`capture.py` (Windows)** and **`capture_kali.py` / `anivrath_capture.py` (Kali)**: group packets into
-  flows (5-tuple), compute each of the 78 training features directly from the packets, write one row per
-  finished flow (idle 30s or 120s max), flush on Ctrl+C. `anivrath_capture.py` additionally computes
-  Active/Idle (gap-based, `ACTIVITY_TIMEOUT_US`, a guess not yet checked against the converter's source)
-  and `Fwd Seg Size Min` (smallest forward TCP header length, also unverified against the source).
-- **`csv/`**: saved test captures used for comparing models (`kali_patator_1s.csv`, `ssh_attack_java.csv`,
-  `kali_to_kali_attack.csv`, `live_kali_to_kali.csv`, `anivrath.csv`).
+### `samiksha_capture/`: REMOVED (as of 2026-10-11)
+- This folder (hand-written Windows/Kali capture programs that computed the 78 features directly
+  from packets, `capture.py` / `capture_kali.py` / `anivrath_capture.py` / `anivrath63_capture.py`,
+  and a `csv/` folder of saved test captures) is no longer present in the project. Its live-capture
+  purpose is now served by `live_ids_app/` below, which uses the real Java CICFlowMeter-v3 to
+  compute features (not hand-rolled packet math) and feeds the live model directly.
+
+### `live_ids_app/`: live Windows application of `new_isolationforest_xgboost_hybrid`
+- **Goal:** while real traffic happens, print every 5 seconds whether the network looks normal
+  (Benign) or like one of the 14 attack types, using the trained model - not a demo, an actual
+  live classifier running continuously.
+- **Pipeline (Windows, this machine):**
+  1. `1_capture_windows.py` - scapy writes a new pcap every 5s into `pcap/` (no tcpdump/windump is
+     installed on this machine, so scapy is used instead; must run as Administrator - packet
+     capture needs admin rights on Windows, confirmed by testing). No port/host filter: captures
+     all traffic, since the app detects any of the 15 classes, not one attack type.
+  2. `2_convert_loop_windows.py` - converts each finished pcap with the Java CICFlowMeter-v3
+     (`F:\CICFlowMeter-master\build\distributions\CICFlowMeter-4.0`, built from source on this
+     machine with both Windows `.dll` and Linux `.so` native libraries bundled; the Windows native
+     library was confirmed to load correctly on this machine's Java 25). Skips the newest pcap
+     (still being written) and prunes old pcap/csv files (keep 40, trim once over 60).
+  3. `3_predict.py` - every 5s, reads new flow CSVs, builds the 63 trained features (via
+     `app_common.py`'s `JAVA_COLUMN` mapping, the same mapping verified for the other hybrid
+     models), computes the Isolation Forest score and stacks it as the 64th column (same method as
+     `new_isolationforest_xgboost_hybrid`), and predicts with the single XGBoost model. Prints a
+     `NETWORK STATUS:` verdict and a per-class breakdown for that window.
+  - Kali versions of steps 1-2 also exist (`1_capture.sh`, `2_convert_loop.sh`, bash/tcpdump) for
+    running this same app on a Kali machine instead; `app_common.py` picks `CONV_DIR` by OS.
+- **Strict data rules (enforced in code, not just documented):** only the 63 trained features are
+  read, cast to float32 (the training dtype). A flow is used only if every one of those 63 values
+  is present and finite - any flow missing a value, or with non-numeric text, is dropped and
+  counted, never filled with 0 or any placeholder. A window with no usable flows is reported as
+  `(no data)`, never guessed.
+- **Results are saved, not just printed:** `results/flow_log.csv` (one row per scored flow: time,
+  source/destination, predicted label, `status` = normal/abnormal, and `remote_host`) and
+  `results/window_log.csv` (one row per 5-second window: counts and that window's verdict). Both
+  are appended and flushed after every write.
+- **`remote_host` (added 2026-10-11):** for abnormal flows only, a reverse-DNS lookup (cached,
+  0.3s timeout, Python's `socket.gethostbyaddr`) on whichever IP in the flow is not a private
+  address. This is a real lookup, not a guess or a hardcoded IP table - confirmed working (a
+  GitHub IP correctly resolved to `lb-140-82-113-22-iad.github.com`). Many CDN/anycast IPs have no
+  reverse-DNS record, so `remote_host` is left blank for those rather than inventing a name.
+- **First real test (2026-10-11, this machine's own normal traffic, no attack run):** 1,368 flows
+  scored, 1,280 (93.6%) called normal, 88 (6.4%) called abnormal (57 SQL Injection, 19
+  Infilteration, 11 Brute Force -XSS, 1 DDoS-LOIC-UDP). Checking the abnormal flows' actual
+  destinations showed they were ordinary HTTPS (port 443) traffic to GitHub, Microsoft Azure and
+  Cloudflare IPs - **these are false positives on normal browsing, not real attacks**, consistent
+  with this project's known gap: the model was trained on 2018 lab traffic, and modern TLS/CDN
+  traffic does not closely resemble 2018's Benign shape, so it occasionally gets classified as
+  whichever attack type's flow pattern happens to look statistically closest. The 93.6% normal
+  figure is the real headline number from this run; the 6.4% abnormal figure likely overstates
+  real attacks on ordinary traffic.
+- **Dependencies (confirmed present on this machine, 2026-10-11):** numpy 2.5.3, xgboost 3.4.1,
+  joblib 1.6.0, scikit-learn 1.9.1, scapy 2.8.0 (all under Python 3.13 - note a separate Python
+  3.10 install is first on PATH and lacks these, so the full 3.13 path must be used), Java 25.0.2,
+  Npcap (already installed and working).
 
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.
