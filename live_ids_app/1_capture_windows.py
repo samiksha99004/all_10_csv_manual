@@ -15,6 +15,10 @@ any of the 15 trained classes, not just one attack type. Pass --filter to narrow
 """
 from app_common import PCAP_DIR, WINDOW_SECONDS  # keep first (WMI patch)
 
+import sys
+sys.stdout.reconfigure(line_buffering=True, write_through=True)  # force real-time printing
+sys.stderr.reconfigure(line_buffering=True, write_through=True)
+
 import argparse
 import os
 import time

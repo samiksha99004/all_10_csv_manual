@@ -9,6 +9,10 @@ Stop with Ctrl+C.
 """
 from app_common import CONV_DIR, CSV_DIR, KEEP_FILES, MAX_FILES, PCAP_DIR  # keep first (WMI patch)
 
+import sys
+sys.stdout.reconfigure(line_buffering=True, write_through=True)  # force real-time printing
+sys.stderr.reconfigure(line_buffering=True, write_through=True)
+
 import glob
 import os
 import subprocess

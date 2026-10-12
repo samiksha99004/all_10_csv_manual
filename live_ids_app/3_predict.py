@@ -33,6 +33,10 @@ Stop with Ctrl+C.
 """
 from app_common import CSV_DIR, JAVA_COLUMN, MODELS, RESULTS_DIR, WINDOW_SECONDS  # keep first (WMI patch)
 
+import sys
+sys.stdout.reconfigure(line_buffering=True, write_through=True)  # force real-time printing in every
+sys.stderr.reconfigure(line_buffering=True, write_through=True)  # terminal host (PowerShell buffered this before)
+
 import csv
 import glob
 import ipaddress
