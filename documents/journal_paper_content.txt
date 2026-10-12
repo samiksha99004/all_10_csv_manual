@@ -1,0 +1,117 @@
+ABSTRACT
+
+This work presents a behavioural network intrusion detection system built around a hybrid
+model. An Isolation Forest is trained on features selected from the CICIDS2018 dataset and
+learns to score network traffic for unusual behaviour. This anomaly score is then seeded,
+along with the original network features of the dataset, into a second model, XGBoost, which
+classifies the traffic. Evaluated on a testing dataset, the hybrid pipeline achieves high
+accuracy, reaching 95.85 percent overall. The system is able to detect attacks that are
+registered in CICIDS2018, predicting whether a given piece of network traffic is normal or
+identifying the specific type of attack it belongs to.
+
+
+KEYWORDS
+
+Intrusion Detection System, Network Intrusion Detection, Anomaly Detection, Behavioural
+Detection, Isolation Forest, XGBoost, Hybrid Model, CICIDS2018, Attack Classification,
+Network Security, Cybersecurity, Machine Learning
+
+
+I. INTRODUCTION
+
+Most intrusion detection tools still rely on matching traffic against a list of known
+attack signatures. That approach only catches what it has already been taught to recognise,
+so an attacker who changes even a small detail of a known technique, or uses something
+genuinely new, has a good chance of passing through unnoticed. Looking instead at how a
+flow of traffic behaves, rather than what it matches, gives a detector a chance to flag
+activity it has never been shown a labelled example of. The difficulty with that approach on
+its own is that a behavioural score is rarely precise enough to act on: a system that can
+only say "this looks unusual" still cannot tell an analyst whether the unusual traffic is a
+denial-of-service flood, a brute-force login attempt, or something otherwise harmless that
+simply looks rare.
+
+This work combines Isolation Forest, an unsupervised anomaly detector, with XGBoost, a
+supervised classifier, so that both properties are available from a single hybrid model
+instead of two separate, disconnected stages. Isolation Forest is trained on features
+selected from the CICIDS2018 dataset without using any attack labels, and it learns to
+assign incoming traffic an anomaly score based on how unusual that traffic looks compared to
+the rest of the data. Rather than using that score only to decide whether traffic is worth a
+closer look, the score is seeded back in alongside the original network features and passed
+into XGBoost, which predicts what the traffic might be. In this way, the anomaly detector's
+judgement becomes part of the evidence the classifier uses, and the system is able to both
+flag unusual traffic and predict what kind of attack it might be, for any attack category
+registered in CICIDS2018.
+
+The contributions of this work are:
+
+- a hybrid design in which an unsupervised anomaly score is seeded into a supervised
+  classifier as part of its input, rather than being used purely as a gate that decides
+  whether traffic is examined further;
+- a cleaned and reprocessed version of the CICIDS2018 dataset, used consistently to train
+  both the anomaly detector and the classifier;
+- evaluation across the attack categories registered in CICIDS2018, so the system is able
+  to recognise each of them individually rather than grouping rare attacks together; and
+- a real-time detection pipeline that captures live network traffic, derives the same
+  features used during training, and predicts whether that traffic is normal or identifies
+  the specific type of attack it represents.
+
+
+
+III. SYSTEM ARCHITECTURE
+
+The system is built around the same hybrid model used in two different settings: a training
+pipeline that builds the model from CICIDS2018, shown in Fig. 1, and a live pipeline that
+applies the trained model to real network traffic, shown in Fig. 2.
+
+A. Training Pipeline
+
+As shown in Fig. 1, the CICIDS2018 dataset first goes through preprocessing and feature
+selection. The preprocessed data is then divided into a training dataset and a testing
+dataset. The training dataset is passed to Isolation Forest, which generates an anomaly
+score for the traffic it sees. That score is seeded into XGBoost together with the original
+network features, and training XGBoost on the two together produces the trained model. The
+testing dataset is kept aside through this process and is brought back in only at
+evaluation, where the trained model's predictions on it are checked to see how well the
+hybrid model performs.
+
+Fig. 1. Training pipeline 
+
+B. Live Prediction Pipeline
+
+As shown in Fig. 2, live network traffic is captured and written out as network capture
+files. The same kind of features used in training are then selected from these captures
+into a feature file. Isolation Forest scores this traffic for unusual behaviour the same
+way it did during training, and that score is seeded into XGBoost together with the original
+network features. XGBoost then predicts what the traffic might be: Normal, or one of the
+attack categories registered in CICIDS2018.
+
+Fig. 2. Live prediction pipeline
+
+
+IV. IMPLEMENTATION
+
+TABLE I. TECHNOLOGY STACK
+
+Layer                          Technology
+Dataset                        CICIDS2018
+Feature Extraction             CICFlowMeter
+Anomaly Scoring Model          Isolation Forest (scikit-learn)
+Classification Model           XGBoost
+Implementation Language        Python
+
+Algorithm 1 describes how the hybrid model turns a set of network features into a
+prediction, whether it is run during training or on live traffic.
+
+Algorithm 1 Hybrid Prediction
+Input: network features F
+Output: predicted label
+1: score <- IsolationForest.score(F)
+2: F_stacked <- concatenate(F, score)
+3: label <- XGBoost.predict(F_stacked)
+4: return label
+
+The same sequence of steps is used in both halves of the system shown in Fig. 1 and Fig. 2:
+Isolation Forest scores the features it is given, that score is seeded back in alongside
+the original features, and XGBoost predicts a label from the combined set. During training
+this produces the trained model; on live traffic it produces a prediction of Normal or the
+attack category the traffic most likely belongs to.

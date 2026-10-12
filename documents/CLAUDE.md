@@ -37,7 +37,10 @@ being present. New folder: `live_ids_app/` (see "Models" below - a live/real-tim
 ```
 all_10_csv_manual/
 ├── README.md, .gitignore                   must stay at the root (README = GitHub front page)
-├── documents/                               CLAUDE.md, ssh_plan.txt, PDFs (moved out of the root)
+├── documents/                               CLAUDE.md, PDFs, training_flow.png + testing_flow.png
+│                                             (pipeline flowcharts), journal_paper_content.txt
+│                                             (new paper draft, headings added incrementally),
+│                                             Behavioural_IDS_IEEE_Paper.pdf (old reference draft)
 ├── reference_projects/                      notes on 5 similar GitHub IDS projects
 ├── new_isolationforest_xgboost_hybrid/      stacked Isolation Forest + XGBoost (see "Models" below)
 ├── live_ids_app/                            live Windows app using that model, 5-second cycle (see "Models" below)
@@ -339,9 +342,33 @@ Final class counts:
   3.10 install is first on PATH and lacks these, so the full 3.13 path must be used), Java 25.0.2,
   Npcap (already installed and working).
 
+## Documents folder additions (2026-10-12)
+- `training_flow.png` / `testing_flow.png`: matplotlib-generated flowcharts (pink/lavender/peach
+  pastel palette, serif font, matched to a reference figure) showing the training pipeline
+  (CICIDS2018 -> Preprocessing + Feature Selection -> Training Dataset / Testing Dataset ->
+  Isolation Forest (Score Generation) -> XGBoost -> Trained Model -> Evaluation) and the live
+  pipeline (Network -> Network Capture (pcap files) -> Feature Selection (csv files) ->
+  Isolation Forest (Score Generation) -> XGBoost -> Normal / Attack 1 / ... / Attack N). Built by
+  a throwaway script kept in Claude's scratchpad, not in the repo - rerun and re-export the PNGs
+  if the pipeline or wording changes.
+- `journal_paper_content.txt`: a new journal-paper draft, content only (plain text, no layout),
+  written section by section at the user's direction, reusing the old paper's heading pattern
+  (Abstract, Keywords, I. Introduction, II. Related Work, III. System Architecture,
+  IV. Implementation, References). Rules the user set while writing it: never state dataset row
+  counts, feature counts, class/label counts, or the train/test split percentage; never mention
+  a "terminal" or an "app"; use predictive language ("predicts what it might be"), not confirming
+  language; name both models (Isolation Forest, XGBoost) explicitly. The Related Work section is
+  an explicit exception - the user asked to keep it identical to the old paper
+  (`Behavioural_IDS_IEEE_Paper.pdf`), citations [1]-[20] included verbatim, so a References list
+  matching those 20 entries is still needed before this draft is complete. As of this commit the
+  file has Abstract, Keywords, I-IV; References has not been added yet.
+- `Behavioural_IDS_IEEE_Paper.pdf`: the team's earlier IEEE-style paper draft (PostgreSQL +
+  FastAPI + React "SENTRY" dashboard design) - superseded by the actual `live_ids_app/`
+  implementation, kept here as the source the new draft's Related Work section was copied from.
+
 ## Git
 - Remote: `github.com/samiksha99004/all_10_csv_manual`, branch `main`.
-- **Standing rule (user request): after every step, update this CLAUDE.md to reflect the change, then commit and push to `main`.** This is durable authorization to push without asking each time.
+- **Standing rule (user request, updated 2026-10-12): after every step, update this CLAUDE.md to reflect the change, but do NOT push automatically anymore — only commit/push to `main` when the user explicitly says to push.** The old "durable authorization to push without asking each time" is revoked. Local commits are fine to keep history tidy; the remote push itself needs an explicit go-ahead each time.
 - **Exception:** the hybrid work (renaming the folder to `isolation_forest_and_xgboost_model/`, steps 4–5, steps.txt and the doc updates) was **not committed or pushed**, because the user said not to. Wait for the user before pushing it.
 - The repo now mirrors the working tree, except that `.gitignore` excludes the CSV and Parquet files (over GitHub's 100 MB limit), so pushes carry only code, docs, the small JSON records and results, the trained model and the PDF reports. The old pipeline files (`merging.py`, `.pkl` models, old `step*.py`) were removed from the repo; they remain in earlier history. `README.md` is the GitHub front page; update it when results or scripts change.
 - Auth: the stored Git Credential Manager credential authenticates as `samiksha99004`. Collaborators with write access: `shraddhamaria25`, `shreshta-del` (owner/admin: `samiksha99004`).
