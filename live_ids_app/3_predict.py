@@ -45,12 +45,14 @@ import os
 import socket
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 import joblib
 import numpy as np
 import xgboost as xgb
 
 _host_cache = {}
+_dns_pool = ThreadPoolExecutor(max_workers=8)
 
 
 def is_private(ip):
@@ -71,19 +73,20 @@ def remote_ip_of(row):
 
 
 def resolve_host(ip):
-    """Reverse-DNS name for ip, cached. Returns '' if it can't resolve - never guessed."""
+    """Reverse-DNS name for ip, cached. Returns '' if it can't resolve within 0.3s - never
+    guessed. socket.setdefaulttimeout() does NOT reliably bound gethostbyaddr() on Windows
+    (it can block for the OS resolver's own, much longer timeout on a real internet IP with
+    no PTR record), so the lookup runs in a worker thread with a hard result timeout instead -
+    a slow/unresponsive DNS server can no longer stall the 5-second prediction loop."""
     if ip is None:
         return ""
     if ip in _host_cache:
         return _host_cache[ip]
-    old_timeout = socket.getdefaulttimeout()
-    socket.setdefaulttimeout(0.3)
+    future = _dns_pool.submit(socket.gethostbyaddr, ip)
     try:
-        name = socket.gethostbyaddr(ip)[0]
-    except (socket.herror, socket.gaierror, socket.timeout, OSError):
+        name = future.result(timeout=0.3)[0]
+    except (socket.herror, socket.gaierror, OSError, FutureTimeoutError):
         name = ""
-    finally:
-        socket.setdefaulttimeout(old_timeout)
     _host_cache[ip] = name
     return name
 
@@ -212,7 +215,12 @@ def main():
                 if counts:
                     verdict = counts.most_common(1)[0][0]
                     breakdown = "; ".join(f"{n}={c}" for n, c in counts.most_common())
-                    print(f"  NETWORK STATUS: {verdict}", flush=True)
+                    benign_count = counts.get(benign_name, 0)
+                    attack_count = len(pred_names) - benign_count
+                    benign_pct = benign_count / len(pred_names) * 100
+                    attack_pct = attack_count / len(pred_names) * 100
+                    print(f"  NETWORK STATUS: Benign {benign_pct:5.1f}%   Attack {attack_pct:5.1f}%"
+                          f"   (majority: {verdict})", flush=True)
                     for name, c in counts.most_common():
                         print(f"    {name:<28}{c:>5}  {c/len(pred_names)*100:6.1f}%", flush=True)
                     print(f"  most active source IP this window: {top_ip}", flush=True)

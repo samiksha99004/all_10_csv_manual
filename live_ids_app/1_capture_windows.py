@@ -32,16 +32,31 @@ def main():
 
     from scapy.all import sniff, wrpcap
 
+    iface = args.iface
+    if not iface:
+        # Scapy's own default-interface pick is unreliable on Windows (it can land on a
+        # VPN/virtual/loopback adapter with no real traffic). Prefer a physical adapter that
+        # actually has a routable IPv4 address instead.
+        from scapy.arch.windows import get_windows_if_list
+        bad_name = ("loopback", "virtual", "vpn", "bluetooth", "hyper-v", "npcap loopback")
+        candidates = [i for i in get_windows_if_list()
+                     if i.get("ips") and not any(b in i.get("name", "").lower() for b in bad_name)
+                     and not any(b in i.get("description", "").lower() for b in bad_name)
+                     and any(not ip.startswith(("127.", "169.254.")) and ":" not in ip for ip in i["ips"])]
+        if candidates:
+            iface = candidates[0]["name"]
+
     os.makedirs(PCAP_DIR, exist_ok=True)
     print(f"writing a new pcap every {WINDOW_SECONDS}s into {PCAP_DIR}", flush=True)
     print("NOTE: this must run as Administrator, or sniff() will fail to open the interface.", flush=True)
+    print(f"interface: {iface or '(scapy default - pass --iface if this captures nothing)'}", flush=True)
     print("capturing now - Ctrl+C to stop.\n", flush=True)
 
     try:
         while True:
             kwargs = {"timeout": WINDOW_SECONDS, "store": True}
-            if args.iface:
-                kwargs["iface"] = args.iface
+            if iface:
+                kwargs["iface"] = iface
             if args.filter:
                 kwargs["filter"] = args.filter
             packets = sniff(**kwargs)
